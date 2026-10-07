@@ -5,5 +5,11 @@
     "name": "Tartiner Labs",
     "url": "https://github.com/tartinerlabs"
   },
-  "plugins": []
+  "plugins": [
+    {
+      "name": "token-weather",
+      "source": "./plugins/token-weather",
+      "description": "A live forecast of the context window, drawn above the prompt."
+    }
+  ]
 }
