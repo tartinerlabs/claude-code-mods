@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from 'claude-code/testing'
+import { describe, expect, mock, test as it } from 'claude-code/testing'
 
 const NOW = Date.parse('2026-10-07T15:45:00Z')
 const BAND = {
@@ -12,7 +12,7 @@ const BAND = {
 
 describe('limit-watch', () => {
   for (const surface of ['terminal', 'desktop'] as const) {
-    test(`colours each window by how much is used, and ticks the countdowns on ${surface}`, async ($, on) => {
+    it(`should colour each window by how much is used and tick the countdowns on ${surface}`, async ($, on) => {
       // Hooks registered here sit beneath the mod and stand in for Claude Code.
       const clock = mock.clock(on, { now: NOW })
       let limits = [
@@ -43,7 +43,7 @@ describe('limit-watch', () => {
     })
   }
 
-  test('toasts each threshold once per reset period', async ($, on) => {
+  it('should toast each threshold once per reset period', async ($, on) => {
     mock.clock(on, { now: NOW })
     const toasts: string[] = []
     let limits = [{ kind: 'five_hour', percentUsed: 82, resetsAt: '2026-10-07T19:30:00Z' }]
@@ -66,7 +66,7 @@ describe('limit-watch', () => {
     expect(toasts).toHaveLength(3)
   })
 
-  test('names a window it does not know by its kind, and draws nothing off a subscription', async ($, on) => {
+  it('should name a window it does not know by its kind and draw nothing off a subscription', async ($, on) => {
     mock.clock(on, { now: NOW })
     let limits: { kind: string; percentUsed: number; resetsAt?: string }[] = [{ kind: 'seven_day_fable', percentUsed: 40 }]
     on('session.start', ($, e) => ({ cwd: e.cwd }))
@@ -85,7 +85,7 @@ describe('limit-watch', () => {
     await ui.unmount()
   })
 
-  test('drops the reset countdowns on a narrow band', async ($, on) => {
+  it('should drop the reset countdowns on a narrow band', async ($, on) => {
     mock.clock(on, { now: NOW })
     const limits = [
       { kind: 'five_hour', percentUsed: 25, resetsAt: '2026-10-07T19:30:00Z' },

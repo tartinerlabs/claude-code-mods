@@ -1,8 +1,8 @@
-import { describe, expect, test } from 'claude-code/testing'
+import { describe, expect, test as it } from 'claude-code/testing'
 
 describe('token-weather', () => {
   for (const surface of ['terminal', 'desktop'] as const) {
-    test(`the band follows the context window on ${surface}`, async ($, on) => {
+    it(`should follow the context window in the band on ${surface}`, async ($, on) => {
       // Hooks registered here sit beneath the mod and stand in for Claude Code.
       let tokens: number | undefined = 36_100
       on('session.start', ($, e) => ({ cwd: e.cwd }))
@@ -54,7 +54,7 @@ describe('token-weather', () => {
     })
   }
 
-  test('drops the history, then the token counts, as the band narrows', async ($, on) => {
+  it('should drop the history, then the token counts, as the band narrows', async ($, on) => {
     let tokens = 36_100
     on('session.start', ($, e) => ({ cwd: e.cwd }))
     on('session.usage', () => ({

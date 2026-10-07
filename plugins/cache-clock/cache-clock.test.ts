@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from 'claude-code/testing'
+import { describe, expect, mock, test as it } from 'claude-code/testing'
 
 const STEP = { turnId: 't1', index: 0, model: 'claude-opus-5-5', messageCount: 1 }
 const BAND = {
@@ -12,7 +12,7 @@ const BAND = {
 
 describe('cache-clock', () => {
   for (const surface of ['terminal', 'desktop'] as const) {
-    test(`the band counts down and goes cold on ${surface}`, async ($, on) => {
+    it(`should count the band down and go cold on ${surface}`, async ($, on) => {
       // Hooks registered here sit beneath the mod and stand in for Claude Code.
       const clock = mock.clock(on, { now: 1_000_000 })
       on('session.start', ($, e) => ({ cwd: e.cwd }))
@@ -67,7 +67,7 @@ describe('cache-clock', () => {
     })
   }
 
-  test('honours a one-hour TTL', { options: { ttl: '1h' } }, async ($, on) => {
+  it('should honour a one-hour TTL', { options: { ttl: '1h' } }, async ($, on) => {
     mock.clock(on)
     on('session.start', ($, e) => ({ cwd: e.cwd }))
     on('turn.step', async function* ($, e) {
@@ -94,7 +94,7 @@ describe('cache-clock', () => {
     await ui.unmount()
   })
 
-  test('keeps to the countdown on a narrow band', async ($, on) => {
+  it('should keep to the countdown on a narrow band', async ($, on) => {
     mock.clock(on, { now: 1_000_000 })
     on('session.start', ($, e) => ({ cwd: e.cwd }))
     on('turn.step', async function* ($, e) {

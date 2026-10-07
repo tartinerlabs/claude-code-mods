@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from 'claude-code/testing'
+import { describe, expect, mock, test as it } from 'claude-code/testing'
 
 const NOW = Date.parse('2026-10-07T10:00:00Z')
 const RESET = '2026-10-07T12:00:00Z'
@@ -9,7 +9,7 @@ const EXHAUSTED = [
 ]
 
 describe('auto-resume', () => {
-  test('sends continue a minute after the exhausted window resets', async ($, on) => {
+  it('should send continue a minute after the exhausted window resets', async ($, on) => {
     // Hooks registered here sit beneath the mod and stand in for Claude Code.
     const clock = mock.clock(on, { now: NOW })
     const sent: string[] = []
@@ -30,7 +30,7 @@ describe('auto-resume', () => {
     expect((await $.command.run({ command: 'auto-resume' })).text).toBe('No resume pending.')
   })
 
-  test('ignores other API errors', async ($, on) => {
+  it('should ignore other API errors', async ($, on) => {
     const clock = mock.clock(on, { now: NOW })
     const sent: string[] = []
     on('session.start', ($, e) => ({ cwd: e.cwd }))
@@ -45,7 +45,7 @@ describe('auto-resume', () => {
     expect(sent).toEqual([])
   })
 
-  test('retries after five minutes when no window says when it resets', async ($, on) => {
+  it('should retry after five minutes when no window says when it resets', async ($, on) => {
     const clock = mock.clock(on, { now: NOW })
     const sent: string[] = []
     on('session.start', ($, e) => ({ cwd: e.cwd }))
@@ -60,7 +60,7 @@ describe('auto-resume', () => {
     expect(sent).toEqual(['continue'])
   })
 
-  test('/auto-resume cancel stops a pending resume', async ($, on) => {
+  it('should stop a pending resume on /auto-resume cancel', async ($, on) => {
     const clock = mock.clock(on, { now: NOW })
     const sent: string[] = []
     on('session.start', ($, e) => ({ cwd: e.cwd }))
