@@ -15,6 +15,11 @@
       "name": "auto-session-name",
       "source": "./plugins/auto-session-name",
       "description": "Names each session from its first prompt, so it is easy to find in /resume."
+    },
+    {
+      "name": "cache-clock",
+      "source": "./plugins/cache-clock",
+      "description": "A countdown to the prompt cache going cold, drawn above the prompt."
     }
   ]
 }

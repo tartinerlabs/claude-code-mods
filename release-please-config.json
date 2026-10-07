@@ -23,6 +23,16 @@
           "jsonpath": "$.version"
         }
       ]
+    },
+    "plugins/cache-clock": {
+      "component": "cache-clock",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        }
+      ]
     }
   }
 }
