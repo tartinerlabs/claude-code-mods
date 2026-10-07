@@ -2,6 +2,6 @@
   "name": "token-weather",
   "version": "0.1.0",
   "description": "A live forecast of the context window, drawn above the prompt.",
-  "author": { "name": "Ru Chern Chong" },
+  "author": { "name": "Tartiner Labs", "url": "https://github.com/tartinerlabs" },
   "types": "./types/index.d.ts"
 }

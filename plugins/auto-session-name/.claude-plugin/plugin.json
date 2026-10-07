@@ -2,5 +2,5 @@
   "name": "auto-session-name",
   "version": "0.1.0",
   "description": "Names each session from its first prompt, so it is easy to find in /resume.",
-  "author": { "name": "Ru Chern Chong" }
+  "author": { "name": "Tartiner Labs", "url": "https://github.com/tartinerlabs" }
 }
