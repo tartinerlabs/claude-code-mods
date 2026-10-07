@@ -20,6 +20,11 @@
       "name": "cache-clock",
       "source": "./plugins/cache-clock",
       "description": "A countdown to the prompt cache going cold, drawn above the prompt."
+    },
+    {
+      "name": "auto-resume",
+      "source": "./plugins/auto-resume",
+      "description": "Sends \"continue\" once a usage limit resets, so a cut-off turn picks up where it stopped."
     }
   ]
 }

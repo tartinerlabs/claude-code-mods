@@ -1,0 +1,7 @@
+{
+  "name": "auto-resume",
+  "version": "0.1.0",
+  "description": "Sends \"continue\" once a usage limit resets, so a turn cut off by the limit picks up where it stopped.",
+  "author": { "name": "Ru Chern Chong" },
+  "types": "./types/index.d.ts"
+}
