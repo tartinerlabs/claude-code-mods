@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { Checks, Pr } from '../types'
+import type { Checks, Pr, Stack } from '../types'
 
 const FIELDS = 'number,url,headRefOid,state,isDraft,mergeable,mergeStateStatus,statusCheckRollup'
 const FAILED = ['FAILURE', 'ERROR', 'TIMED_OUT', 'CANCELLED', 'ACTION_REQUIRED', 'STARTUP_FAILURE']
@@ -52,8 +52,31 @@ export function mergeEntry(pr: Pr): [string, string] {
   return ['waiting', 'gray']
 }
 
-async function fetchPr($: EngineInterface): Promise<Pr | null> {
-  const ran = await $.process.run(['gh', 'pr', 'view', '--json', FIELDS], { timeoutMs: 15_000 }).catch(() => null)
+type StackView = { currentBranch: string; branches: { name: string; isMerged: boolean; pr?: { number: number } }[] }
+
+/** The current branch's place among the unmerged layers of `gh stack view --json`, or null when it is not one. */
+export function parseStack(view: StackView): Stack | null {
+  const layers = view.branches.filter(b => !b.isMerged).map(b => ({ branch: b.name, pr: b.pr?.number }))
+  const index = layers.findIndex(l => l.branch === view.currentBranch)
+
+  return index < 0 ? null : { position: index + 1, total: layers.length, layers }
+}
+
+async function fetchStack($: EngineInterface): Promise<Stack | null> {
+  // Exits non-zero off a stack, and where the gh-stack extension is not installed.
+  const ran = await $.process.run(['gh', 'stack', 'view', '--json'], { timeoutMs: 15_000 }).catch(() => null)
+  if (!ran || ran.exitCode !== 0) return null
+
+  try {
+    return parseStack(JSON.parse(ran.stdout))
+  } catch {
+    return null
+  }
+}
+
+async function fetchPr($: EngineInterface, number?: number): Promise<Pr | null> {
+  const argv = ['gh', 'pr', 'view', ...(number ? [String(number)] : []), '--json', FIELDS]
+  const ran = await $.process.run(argv, { timeoutMs: 15_000 }).catch(() => null)
   if (!ran || ran.exitCode !== 0) return null
   const view = JSON.parse(ran.stdout)
   if (view.state !== 'OPEN') return null
@@ -71,6 +94,8 @@ async function fetchPr($: EngineInterface): Promise<Pr | null> {
 
 async function refresh($: EngineInterface) {
   const pr = await fetchPr($)
+  const stack = pr && (await fetchStack($))
+  if (pr && stack) pr.stack = stack
   const was = await read($, current)
   await update($, current, () => pr)
 
@@ -84,12 +109,40 @@ async function refresh($: EngineInterface) {
   )
 }
 
+/** True when `branch` is at `head` locally, so merging and deleting it loses no unpushed commits. */
+async function isPushed($: EngineInterface, branch: string, head: string) {
+  const local = await $.process.run(['git', 'rev-parse', '--verify', `refs/heads/${branch}^{commit}`]).catch(() => null)
+
+  return local?.exitCode === 0 && local.stdout.trim() === head
+}
+
+/**
+ * Merges the whole stack with `gh stack merge`, after checking every unmerged layer, since it is all
+ * or nothing and has no head pin. It runs without an argument, as a number would be read as a stack
+ * number before a pull request number.
+ */
+async function mergeStack($: EngineInterface, pr: Pr, stack: Stack, method: string) {
+  const numbers: number[] = []
+  for (const layer of stack.layers) {
+    if (!layer.pr) return `${layer.branch} has no pull request yet: run gh stack submit first.`
+    const one = layer.pr === pr.number ? pr : await fetchPr($, layer.pr)
+    if (!one) return `PR #${layer.pr} (${layer.branch}) is not open.`
+    if (!isReady(one)) return `PR #${one.number} (${layer.branch}) is not ready to merge: ${checksEntry(one.checks)[0]}, ${mergeEntry(one)[0]}.`
+    if (!(await isPushed($, layer.branch, one.head))) return `${layer.branch} is not at PR #${one.number}'s head: push or pull first.`
+    numbers.push(one.number)
+  }
+
+  const ran = await $.process.run(['gh', 'stack', 'merge', '--yes', `--${method}`], { timeoutMs: 300_000 })
+
+  return ran.exitCode === 0 ? `Merged stack: PR #${numbers.join(', #')}.` : `gh stack merge failed: ${clean((ran.stderr || ran.stdout).trim())}`
+}
+
 export const register: Register = (on, options) => {
   const method = typeof options.method === 'string' ? options.method : 'merge'
 
   on('session.start', async ($, e, next) => {
     const result = await next(e)
-    await $.command.register({ name: 'merge', description: "Merge this branch's pull request once its checks pass" })
+    await $.command.register({ name: 'merge', description: "Merge this branch's pull request, or its whole stack, once checks pass" })
     await refresh($)
     $.clock.every(60_000, () => refresh($))
 
@@ -108,6 +161,12 @@ export const register: Register = (on, options) => {
     await refresh($)
     const pr = await read($, current)
     if (!pr) return { text: 'No open pull request for this branch.' }
+    if (pr.stack) {
+      const text = await mergeStack($, pr, pr.stack, method)
+      await refresh($)
+
+      return { text }
+    }
     if (!isReady(pr)) return { text: `PR #${pr.number} is not ready to merge: ${checksEntry(pr.checks)[0]}, ${mergeEntry(pr)[0]}.` }
 
     // --delete-branch drops the local branch, so refuse while it holds commits the PR does not.
@@ -138,6 +197,7 @@ export const register: Register = (on, options) => {
       <Box flexDirection="column">
         <Box flexDirection="row" paddingX={1} gap={2}>
           <Text dimColor>PR #{pr.number}</Text>
+          {pr.stack && <Text dimColor>stack {pr.stack.position}/{pr.stack.total}</Text>}
           <Text color={checksColour} wrap="truncate-end">{checks}</Text>
           <Text color={mergeColour}>{merge}</Text>
         </Box>

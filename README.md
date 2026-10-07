@@ -76,12 +76,13 @@ Draws the 5-hour and weekly usage limits above the prompt with live reset countd
 
 ### 🛫 pr-pilot
 
-Draws the current branch's open pull request above the prompt with its checks and whether it can merge, refreshed each minute and after every turn. Toasts when a run of checks finishes. `/merge` merges it with `gh` and deletes the branch, but only once every check has passed and nothing blocks it. Set the `method` option to `merge` (default), `squash` or `rebase`. Needs the [GitHub CLI](https://cli.github.com), signed in.
+Draws the current branch's open pull request above the prompt with its checks and whether it can merge, refreshed each minute and after every turn. Toasts when a run of checks finishes. `/merge` merges it with `gh` and deletes the branch, but only once every check has passed and nothing blocks it. On a [gh-stack](https://github.com/github/gh-stack) layer the band shows its place in the stack, and `/merge` merges the whole stack with `gh stack merge` once every unmerged layer has passed its checks and has no unpushed commits. Set the `method` option to `merge` (default), `squash` or `rebase`. Needs the [GitHub CLI](https://cli.github.com), signed in.
 
 ```text
 PR #42  ◐ 3/5 checks  waiting                                ← band
 PR #42  ✗ 1 failing: SonarCloud  blocked                     ← red
 PR #42  ✓ 5/5 checks  ready · /merge                         ← green
+PR #42  stack 2/3  ✓ 5/5 checks  ready · /merge              ← a gh-stack layer
 PR #42 checks passed, ready to /merge                        ← toast
 ```
 
