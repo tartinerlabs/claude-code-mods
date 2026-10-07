@@ -3,6 +3,7 @@
   "bootstrap-sha": "064b04f2da2428cd5e0acf6cea405def57868de8",
   "release-type": "simple",
   "include-component-in-tag": true,
+  "release-as": "0.3.0",
   "packages": {
     "plugins/auto-session-name": {
       "component": "auto-session-name",
@@ -54,5 +55,18 @@
         }
       ]
     }
-  }
+  },
+  "plugins": [
+    {
+      "type": "linked-versions",
+      "groupName": "mods",
+      "components": [
+        "auto-resume",
+        "auto-session-name",
+        "cache-clock",
+        "limit-watch",
+        "token-weather"
+      ]
+    }
+  ]
 }
