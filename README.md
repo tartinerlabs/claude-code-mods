@@ -42,7 +42,7 @@ Usage limit reset, resuming                                 ← toast
 
 ### 🏷 auto-session-name
 
-Names each session from its first prompt using Haiku and gives it a random prompt bar colour, so it is easy to find with `claude -r` after a crash. Sessions already named with `-n` or `/rename` are left alone.
+Names each session from its first prompt using Haiku and can give it a prompt bar colour, so it is easy to find with `claude -r` after a crash. Sessions already named with `-n` or `/rename` are left alone. Set the `color` option to `red`, `blue`, `green`, `yellow`, `purple`, `orange`, `pink` or `cyan` to colour named sessions; `default` leaves the colour alone.
 
 ```text
 > fix the flaky retry test in the upload worker

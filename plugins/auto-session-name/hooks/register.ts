@@ -6,7 +6,9 @@ const PROMPT = `Write a 3-5 word title for a coding session that starts with the
 {prompt}
 </request>`
 
-export const register: Register = (on) => {
+export const register: Register = (on, options) => {
+  // `default` leaves the prompt bar colour alone.
+  const color = typeof options.color === 'string' && options.color !== 'default' ? options.color : undefined
   // /color can't run while the turn waits on UserPromptSubmit, so it waits for turn.complete.
   let colorPending = false
 
@@ -27,7 +29,7 @@ export const register: Register = (on) => {
     if (!reply.isAnswered) return result
     const title = (reply.text.split('\n')[0] ?? '').replace(/^["'`]+|["'`.]+$/g, '').trim().slice(0, 60)
     if (!title) return result
-    colorPending = true
+    colorPending = color !== undefined
     return { ...result, sessionTitle: title }
   }).catch(($, e, next) => next(e))
 
@@ -35,8 +37,7 @@ export const register: Register = (on) => {
     const result = await next(e)
     if (!colorPending || e.agentId !== undefined) return result
     colorPending = false
-    // Bare /color picks a random prompt bar colour for the session.
-    $.command.run({ command: 'color' }).catch(() => {})
+    $.command.run({ command: 'color', args: color }).catch(() => {})
     return result
   })
 }

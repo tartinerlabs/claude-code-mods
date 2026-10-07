@@ -10,16 +10,27 @@ describe('auto-session-name', () => {
     expect(result.sessionTitle).toBe('Fix login redirect bug')
   })
 
-  test('colours the prompt bar once the named turn completes', async ($, on) => {
+  test('colours the prompt bar once the named turn completes', { options: { color: 'cyan' } }, async ($, on) => {
     on('classic.UserPromptSubmit', () => ({}))
     on('model.complete', () => ({ value: { isAnswered: true, text: 'Fix login redirect bug', usage } }))
     on('turn.complete', () => ({ text: '' }))
     const ran: string[] = []
-    on('command.run', (_, e) => { ran.push(e.command); return { text: '' } })
+    on('command.run', (_, e) => { ran.push(`${e.command} ${e.args}`.trim()); return { text: '' } })
     await $.classic.UserPromptSubmit({ prompt: 'the login page redirects in a loop', source: 'user' })
     await $.turn.complete({ reason: 'answer', answer: 'done' })
     await $.turn.complete({ reason: 'answer', answer: 'done again' })
-    expect(ran).toEqual(['color'])
+    expect(ran).toEqual(['color cyan'])
+  })
+
+  test('leaves the prompt bar colour alone by default', async ($, on) => {
+    on('classic.UserPromptSubmit', () => ({}))
+    on('model.complete', () => ({ value: { isAnswered: true, text: 'Fix login redirect bug', usage } }))
+    on('turn.complete', () => ({ text: '' }))
+    const ran: string[] = []
+    on('command.run', (_, e) => { ran.push(`${e.command} ${e.args}`.trim()); return { text: '' } })
+    await $.classic.UserPromptSubmit({ prompt: 'the login page redirects in a loop', source: 'user' })
+    await $.turn.complete({ reason: 'answer', answer: 'done' })
+    expect(ran).toEqual([])
   })
 
   test('leaves a named session alone', async ($, on) => {
