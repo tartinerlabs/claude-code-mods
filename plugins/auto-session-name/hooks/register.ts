@@ -11,6 +11,8 @@ export const register: Register = (on, options) => {
   const color = typeof options.color === 'string' && options.color !== 'default' ? options.color : undefined
   // /color can't run while the turn waits on UserPromptSubmit, so it waits for turn.complete.
   let colorPending = false
+  // A /color from the person or another plugin wins over the configured one.
+  let colorChosen = false
 
   on('classic.UserPromptSubmit', async ($, e, next) => {
     const result = await next(e)
@@ -29,9 +31,17 @@ export const register: Register = (on, options) => {
     if (!reply.isAnswered) return result
     const title = (reply.text.split('\n')[0] ?? '').replace(/^["'`]+|["'`.]+$/g, '').trim().slice(0, 60)
     if (!title) return result
-    colorPending = color !== undefined
+    colorPending = color !== undefined && !colorChosen
     return { ...result, sessionTitle: title }
   }).catch(($, e, next) => next(e))
+
+  on('command.run', { command: 'color' }, ($, e, next) => {
+    if (e.origin.kind !== 'plugin' || e.origin.name !== 'auto-session-name') {
+      colorChosen = true
+      colorPending = false
+    }
+    return next(e)
+  })
 
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
