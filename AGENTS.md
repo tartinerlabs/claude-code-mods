@@ -38,7 +38,7 @@ Each mod lives at `plugins/<mod-name>/` and is listed in `.claude-plugin/marketp
 
 ## Tests
 
-Tests import from `claude-code/testing`. Handlers registered with `on(...)` inside a test sit beneath the mod and stand in for Claude Code. Drive time with `mock.clock`, mount UI with `$.ui.mount({ plugin, surface, component, props })` and assert with `ui.find`. UI tests run on both the `terminal` and `desktop` surfaces.
+Tests import from `claude-code/testing`. Write each case as `it('should …')`; the kit has no `it`, so import `test as it`. Handlers registered with `on(...)` inside a test sit beneath the mod and stand in for Claude Code. Drive time with `mock.clock`, mount UI with `$.ui.mount({ plugin, surface, component, props })` and assert with `ui.find`. UI tests run on both the `terminal` and `desktop` surfaces.
 
 ## Releases
 

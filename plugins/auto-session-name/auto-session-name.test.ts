@@ -1,16 +1,16 @@
-import { describe, expect, test } from 'claude-code/testing'
+import { describe, expect, test as it } from 'claude-code/testing'
 
 const usage = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
 
 describe('auto-session-name', () => {
-  test('names an unnamed session from its prompt', async ($, on) => {
+  it('should name an unnamed session from its prompt', async ($, on) => {
     on('classic.UserPromptSubmit', () => ({}))
     on('model.complete', () => ({ value: { isAnswered: true, text: '"Fix login redirect bug."\n', usage } }))
     const result = await $.classic.UserPromptSubmit({ prompt: 'the login page redirects in a loop', source: 'user' })
     expect(result.sessionTitle).toBe('Fix login redirect bug')
   })
 
-  test('colours the prompt bar once the named turn completes', { options: { color: 'cyan' } }, async ($, on) => {
+  it('should colour the prompt bar once the named turn completes', { options: { color: 'cyan' } }, async ($, on) => {
     on('classic.UserPromptSubmit', () => ({}))
     on('model.complete', () => ({ value: { isAnswered: true, text: 'Fix login redirect bug', usage } }))
     on('turn.complete', () => ({ text: '' }))
@@ -22,7 +22,7 @@ describe('auto-session-name', () => {
     expect(ran).toEqual(['color cyan'])
   })
 
-  test('leaves the prompt bar colour alone by default', async ($, on) => {
+  it('should leave the prompt bar colour alone by default', async ($, on) => {
     on('classic.UserPromptSubmit', () => ({}))
     on('model.complete', () => ({ value: { isAnswered: true, text: 'Fix login redirect bug', usage } }))
     on('turn.complete', () => ({ text: '' }))
@@ -33,7 +33,7 @@ describe('auto-session-name', () => {
     expect(ran).toEqual([])
   })
 
-  test('leaves a named session alone', async ($, on) => {
+  it('should leave a named session alone', async ($, on) => {
     on('classic.UserPromptSubmit', () => ({}))
     let asked = false
     on('model.complete', () => { asked = true; return { value: { isAnswered: true, text: 'Other', usage } } })
@@ -42,7 +42,7 @@ describe('auto-session-name', () => {
     expect(asked).toBe(false)
   })
 
-  test('skips machine-sent turns and slash commands', async ($, on) => {
+  it('should skip machine-sent turns and slash commands', async ($, on) => {
     on('classic.UserPromptSubmit', () => ({}))
     let asked = false
     on('model.complete', () => { asked = true; return { value: { isAnswered: true, text: 'Other', usage } } })
@@ -51,7 +51,7 @@ describe('auto-session-name', () => {
     expect(asked).toBe(false)
   })
 
-  test('passes the prompt through unnamed when the model fails', async ($, on) => {
+  it('should pass the prompt through unnamed when the model fails', async ($, on) => {
     on('classic.UserPromptSubmit', () => ({}))
     on('model.complete', () => ({ value: { isAnswered: false, reason: 'empty-reply', usage } }))
     const result = await $.classic.UserPromptSubmit({ prompt: 'add a test' })
