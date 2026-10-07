@@ -16,6 +16,7 @@ const view = (rollup: object[], extra: object = {}) =>
   JSON.stringify({
     number: 42,
     url: 'https://github.com/o/r/pull/42',
+    headRefOid: 'abc123',
     state: 'OPEN',
     isDraft: false,
     mergeable: 'MERGEABLE',
@@ -40,6 +41,11 @@ describe('tally', () => {
         { __typename: 'CheckRun', name: 'docs', status: 'COMPLETED', conclusion: 'SKIPPED' },
       ]),
     ).toEqual({ total: 5, passed: 3, pending: 1, failed: ['SonarCloud'] })
+  })
+
+  it('should strip terminal escapes from check names', () => {
+    const rollup = [{ __typename: 'CheckRun', name: 'e2e\u001b]52;c;aGk=\u0007\u001b[2J', status: 'COMPLETED', conclusion: 'FAILURE' }]
+    expect(tally(rollup).failed).toEqual(['e2e]52;c;aGk=[2J'])
   })
 
   it('should name failing checks first', () => {
@@ -94,7 +100,7 @@ describe('pr-pilot', () => {
     let rollup = PENDING
     on('session.start', ($, e) => ({ cwd: e.cwd }))
     on('command.register', () => ({ value: { command: 'merge' } }))
-    on('process.run', ($, e) => (ran.push(e.argv.join(' ')), run(e.argv[2] === 'merge' ? '' : view(rollup))))
+    on('process.run', ($, e) => (ran.push(e.argv.join(' ')), run(e.argv[0] === 'git' ? 'abc123\n' : e.argv[2] === 'merge' ? '' : view(rollup))))
 
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
     const early = await $.command.run({ command: 'merge', args: '' })
@@ -104,6 +110,18 @@ describe('pr-pilot', () => {
     rollup = GREEN
     const merged = await $.command.run({ command: 'merge', args: '' })
     expect(merged.text).toBe('Merged PR #42.')
-    expect(ran).toContain('gh pr merge 42 --squash --delete-branch')
+    expect(ran).toContain('gh pr merge 42 --squash --delete-branch --match-head-commit abc123')
+  })
+
+  it('should not merge while the local branch is ahead of the pull request', async ($, on) => {
+    const ran: string[] = []
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('command.register', () => ({ value: { command: 'merge' } }))
+    on('process.run', ($, e) => (ran.push(e.argv.join(' ')), run(e.argv[0] === 'git' ? 'def456\n' : view(GREEN))))
+
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+    const refused = await $.command.run({ command: 'merge', args: '' })
+    expect(refused.text).toBe("This branch is not at PR #42's head: push or pull first.")
+    expect(ran.some(c => c.startsWith('gh pr merge'))).toBe(false)
   })
 })
