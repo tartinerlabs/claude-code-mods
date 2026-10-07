@@ -14,3 +14,4 @@ Thumbs.db
 
 # Engine-generated mod types
 plugins/*/.claude-plugin/types/
+plugins/*/tsconfig.json
