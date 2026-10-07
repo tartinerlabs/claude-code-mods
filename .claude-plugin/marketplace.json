@@ -30,6 +30,11 @@
       "name": "limit-watch",
       "source": "./plugins/limit-watch",
       "description": "The 5-hour and weekly usage limits above the prompt, coloured by use, with reset countdowns and toasts at 80% and 95%."
+    },
+    {
+      "name": "pr-pilot",
+      "source": "./plugins/pr-pilot",
+      "description": "The current branch's pull request above the prompt, with its checks and whether it can merge, toasts when checks finish, and /merge."
     }
   ]
 }
