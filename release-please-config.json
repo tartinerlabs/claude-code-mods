@@ -1,71 +1,16 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
-  "bootstrap-sha": "064b04f2da2428cd5e0acf6cea405def57868de8",
+  "last-release-sha": "e1f6f6ad8bdb3d0b36fa29f95f3e26f9641fe757",
   "release-type": "simple",
-  "include-component-in-tag": true,
   "packages": {
-    "plugins/auto-session-name": {
-      "component": "auto-session-name",
+    ".": {
       "extra-files": [
-        {
-          "type": "json",
-          "path": ".claude-plugin/plugin.json",
-          "jsonpath": "$.version"
-        }
-      ]
-    },
-    "plugins/token-weather": {
-      "component": "token-weather",
-      "extra-files": [
-        {
-          "type": "json",
-          "path": ".claude-plugin/plugin.json",
-          "jsonpath": "$.version"
-        }
-      ]
-    },
-    "plugins/cache-clock": {
-      "component": "cache-clock",
-      "extra-files": [
-        {
-          "type": "json",
-          "path": ".claude-plugin/plugin.json",
-          "jsonpath": "$.version"
-        }
-      ]
-    },
-    "plugins/limit-watch": {
-      "component": "limit-watch",
-      "extra-files": [
-        {
-          "type": "json",
-          "path": ".claude-plugin/plugin.json",
-          "jsonpath": "$.version"
-        }
-      ]
-    },
-    "plugins/auto-resume": {
-      "component": "auto-resume",
-      "extra-files": [
-        {
-          "type": "json",
-          "path": ".claude-plugin/plugin.json",
-          "jsonpath": "$.version"
-        }
+        { "type": "json", "path": "plugins/auto-resume/.claude-plugin/plugin.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "plugins/auto-session-name/.claude-plugin/plugin.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "plugins/cache-clock/.claude-plugin/plugin.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "plugins/limit-watch/.claude-plugin/plugin.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "plugins/token-weather/.claude-plugin/plugin.json", "jsonpath": "$.version" }
       ]
     }
-  },
-  "plugins": [
-    {
-      "type": "linked-versions",
-      "groupName": "mods",
-      "components": [
-        "auto-resume",
-        "auto-session-name",
-        "cache-clock",
-        "limit-watch",
-        "token-weather"
-      ]
-    }
-  ]
+  }
 }
