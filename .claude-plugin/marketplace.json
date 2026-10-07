@@ -3,7 +3,7 @@
   "description": "Claude Code mods — live panes, prompt bands, status line entries, toasts, and tool-call hooks",
   "owner": {
     "name": "Tartiner Labs",
-    "url": "https://github.com/tartinerlabs"
+    "url": "https://tartinerlabs.com"
   },
   "plugins": [
     {
