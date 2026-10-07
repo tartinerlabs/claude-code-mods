@@ -3,11 +3,14 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import type { Checks, Pr } from '../types'
 
-const FIELDS = 'number,url,state,isDraft,mergeable,mergeStateStatus,statusCheckRollup'
+const FIELDS = 'number,url,headRefOid,state,isDraft,mergeable,mergeStateStatus,statusCheckRollup'
 const FAILED = ['FAILURE', 'ERROR', 'TIMED_OUT', 'CANCELLED', 'ACTION_REQUIRED', 'STARTUP_FAILURE']
 
 // Held by the host, so a hot reload keeps the band and does not toast the same result twice.
 const current = atom({ plugin: 'pr-pilot', key: 'pr' } as const, null as Pr | null)
+
+/** Drops control characters, so a check name or gh output cannot carry terminal escapes. */
+export const clean = (text: string) => text.replace(/[\u0000-\u001f\u007f-\u009f]/g, '')
 
 type Rollup = { __typename?: string; name?: string; context?: string; status?: string; conclusion?: string; state?: string }
 
@@ -16,7 +19,7 @@ export function tally(rollup: readonly Rollup[]): Checks {
   const checks: Checks = { total: rollup.length, passed: 0, pending: 0, failed: [] }
   for (const check of rollup) {
     const result = check.__typename === 'StatusContext' ? check.state : check.status === 'COMPLETED' ? check.conclusion : 'PENDING'
-    if (FAILED.includes(result ?? '')) checks.failed.push(check.name ?? check.context ?? '?')
+    if (FAILED.includes(result ?? '')) checks.failed.push(clean(check.name ?? check.context ?? '?'))
     else if (result === 'PENDING' || result === 'EXPECTED' || !result) checks.pending += 1
     else checks.passed += 1
   }
@@ -58,6 +61,7 @@ async function fetchPr($: EngineInterface): Promise<Pr | null> {
   return {
     number: view.number,
     url: view.url,
+    head: view.headRefOid,
     isDraft: view.isDraft,
     mergeable: view.mergeable,
     mergeStateStatus: view.mergeStateStatus,
@@ -106,10 +110,15 @@ export const register: Register = (on, options) => {
     if (!pr) return { text: 'No open pull request for this branch.' }
     if (!isReady(pr)) return { text: `PR #${pr.number} is not ready to merge: ${checksEntry(pr.checks)[0]}, ${mergeEntry(pr)[0]}.` }
 
-    const ran = await $.process.run(['gh', 'pr', 'merge', String(pr.number), `--${method}`, '--delete-branch'], { timeoutMs: 120_000 })
+    // --delete-branch drops the local branch, so refuse while it holds commits the PR does not.
+    const local = await $.process.run(['git', 'rev-parse', 'HEAD']).catch(() => null)
+    if (local?.stdout.trim() !== pr.head) return { text: `This branch is not at PR #${pr.number}'s head: push or pull first.` }
+
+    // Pinned to the head that was checked, so a push since then is not merged unchecked.
+    const ran = await $.process.run(['gh', 'pr', 'merge', String(pr.number), `--${method}`, '--delete-branch', '--match-head-commit', pr.head], { timeoutMs: 120_000 })
     await refresh($)
 
-    return { text: ran.exitCode === 0 ? `Merged PR #${pr.number}.` : `gh pr merge failed: ${(ran.stderr || ran.stdout).trim()}` }
+    return { text: ran.exitCode === 0 ? `Merged PR #${pr.number}.` : `gh pr merge failed: ${clean((ran.stderr || ran.stdout).trim())}` }
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {

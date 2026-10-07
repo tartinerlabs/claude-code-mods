@@ -5,6 +5,8 @@ export type Checks = { total: number; passed: number; pending: number; failed: s
 export type Pr = {
   number: number
   url: string
+  /** The head commit the checks ran on. */
+  head: string
   isDraft: boolean
   mergeable: string
   mergeStateStatus: string
