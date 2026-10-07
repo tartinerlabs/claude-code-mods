@@ -7,6 +7,9 @@ const PROMPT = `Write a 3-5 word title for a coding session that starts with the
 </request>`
 
 export const register: Register = (on) => {
+  // /color can't run while the turn waits on UserPromptSubmit, so it waits for turn.complete.
+  let colorPending = false
+
   on('classic.UserPromptSubmit', async ($, e, next) => {
     const result = await next(e)
     // Leave sessions named by -n, /rename or another hook, and machine-sent turns.
@@ -23,6 +26,17 @@ export const register: Register = (on) => {
     })
     if (!reply.isAnswered) return result
     const title = (reply.text.split('\n')[0] ?? '').replace(/^["'`]+|["'`.]+$/g, '').trim().slice(0, 60)
-    return title ? { ...result, sessionTitle: title } : result
+    if (!title) return result
+    colorPending = true
+    return { ...result, sessionTitle: title }
   }).catch(($, e, next) => next(e))
+
+  on('turn.complete', async ($, e, next) => {
+    const result = await next(e)
+    if (!colorPending || e.agentId !== undefined) return result
+    colorPending = false
+    // Bare /color picks a random prompt bar colour for the session.
+    $.command.run({ command: 'color' }).catch(() => {})
+    return result
+  })
 }
