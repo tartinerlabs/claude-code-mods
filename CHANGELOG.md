@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.5.0...v0.6.0) (2026-10-07)
+
+
+### Features
+
+* **pr-pilot:** support gh-stack stacks ([394076c](https://github.com/tartinerlabs/claude-code-mods/commit/394076cc38683242393295a8491c918286b0662f))
+
 ## [0.5.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.4.0...v0.5.0) (2026-10-07)
 
 
