@@ -33,6 +33,16 @@
           "jsonpath": "$.version"
         }
       ]
+    },
+    "plugins/limit-watch": {
+      "component": "limit-watch",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        }
+      ]
     }
   }
 }

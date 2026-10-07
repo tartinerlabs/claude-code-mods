@@ -1,0 +1,7 @@
+{
+  "name": "limit-watch",
+  "version": "0.1.0",
+  "description": "Draws the 5-hour and weekly usage limits above the prompt, coloured by use, with reset countdowns and toasts at 80% and 95%.",
+  "author": { "name": "Ru Chern Chong" },
+  "types": "./types/index.d.ts"
+}
