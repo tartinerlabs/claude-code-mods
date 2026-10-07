@@ -1,7 +1,7 @@
 {
   "name": "pr-pilot",
   "displayName": "PR Pilot",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Shows the current branch's pull request above the prompt, with its checks and whether it can merge, toasts when checks finish, and merges it with /merge.",
   "author": {
     "name": "Tartiner Labs",
@@ -13,7 +13,11 @@
       "type": "string",
       "title": "Merge method",
       "description": "How /merge merges the pull request.",
-      "options": ["merge", "squash", "rebase"],
+      "options": [
+        "merge",
+        "squash",
+        "rebase"
+      ],
       "default": "merge"
     }
   }

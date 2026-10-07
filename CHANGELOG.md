@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.4.0...v0.5.0) (2026-10-07)
+
+
+### Features
+
+* **pr-pilot:** add pr-pilot mod ([6da6a73](https://github.com/tartinerlabs/claude-code-mods/commit/6da6a731bff706724887dc98fce2a640d6ce644e))
+
+
+### Bug Fixes
+
+* **auto-session-name:** keep a colour set with /color ([f707424](https://github.com/tartinerlabs/claude-code-mods/commit/f7074240e2eb0db5af38afb9921b1e93a171b9a9))
+* **pr-pilot:** harden /merge and check names ([b0219a9](https://github.com/tartinerlabs/claude-code-mods/commit/b0219a9beecd0f33244bf1b1e364f2e5aa7d1d4f))
+
 ## [0.4.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.3.0...v0.4.0) (2026-10-07)
 
 
