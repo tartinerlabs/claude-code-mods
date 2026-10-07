@@ -34,7 +34,7 @@
     {
       "name": "pr-pilot",
       "source": "./plugins/pr-pilot",
-      "description": "The current branch's pull request above the prompt, with its checks and whether it can merge, toasts when checks finish, and /merge."
+      "description": "The current branch's pull request above the prompt, with its checks and whether it can merge, toasts when checks finish, and /merge for single PRs and gh-stack stacks."
     }
   ]
 }

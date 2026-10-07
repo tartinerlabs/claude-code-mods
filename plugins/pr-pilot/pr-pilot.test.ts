@@ -1,5 +1,5 @@
 import { describe, expect, mock, test as it } from 'claude-code/testing'
-import { checksEntry, tally } from './hooks/register'
+import { checksEntry, parseStack, tally } from './hooks/register'
 
 const BAND = {
   hasSurvey: false,
@@ -54,7 +54,99 @@ describe('tally', () => {
   })
 })
 
+const STACK = JSON.stringify({
+  trunk: 'main',
+  currentBranch: 'api',
+  branches: [
+    { name: 'auth', isMerged: true, pr: { number: 40, state: 'MERGED' } },
+    { name: 'db', isMerged: false, pr: { number: 41, state: 'OPEN' } },
+    { name: 'api', isMerged: false, pr: { number: 42, state: 'OPEN' } },
+    { name: 'ui', isMerged: false, pr: { number: 43, state: 'OPEN' } },
+  ],
+})
+
+/** Stands in for gh and git on a stack of db #41, api #42 (checked out) and ui #43 above `auth`, already merged. */
+const stacked = (state: { rollup41?: object[]; localDb?: string; ran?: string[] } = {}) => ($: unknown, e: { argv: readonly string[] }) => {
+  const argv = e.argv
+  state.ran?.push(argv.join(' '))
+  if (argv[1] === 'stack') return run(argv[2] === 'view' ? STACK : '')
+  if (argv[0] === 'git') return run(`${argv[3] === 'refs/heads/db^{commit}' ? (state.localDb ?? 'h41') : `h${{ api: 42, ui: 43 }[argv[3]!.slice(11, -9) as 'api' | 'ui']}`}\n`)
+  const number = argv[3] === '--json' ? 42 : Number(argv[3])
+
+  return run(view(number === 41 ? (state.rollup41 ?? GREEN) : GREEN, { number, headRefOid: `h${number}` }))
+}
+
+describe('parseStack', () => {
+  it('should place the current branch among the unmerged layers', () => {
+    const stack = parseStack(JSON.parse(STACK))
+    expect(stack).toEqual({
+      position: 2,
+      total: 3,
+      layers: [
+        { branch: 'db', pr: 41 },
+        { branch: 'api', pr: 42 },
+        { branch: 'ui', pr: 43 },
+      ],
+    })
+  })
+
+  it('should not place a branch outside the stack', () => {
+    expect(parseStack({ currentBranch: 'main', branches: [{ name: 'db', isMerged: false }] })).toBeNull()
+  })
+})
+
 describe('pr-pilot', () => {
+  for (const surface of ['terminal', 'desktop'] as const) {
+    it(`should show the layer's place in its stack on ${surface}`, async ($, on) => {
+      on('session.start', ($, e) => ({ cwd: e.cwd }))
+      on('command.register', () => ({ value: { command: 'merge' } }))
+      on('process.run', stacked())
+      on('ui.render', ($, e) => $.ui.resolve(e).Box({}))
+
+      await $.session.start({ surface, isInteractive: true, cwd: '/work' })
+      const ui = await $.ui.mount({ plugin: 'pr-pilot', surface, component: 'AbovePrompt', props: BAND })
+      expect(await ui.find({ type: 'Text', text: 'stack 2/3' })).toBeDefined()
+      await ui.unmount()
+    })
+  }
+
+  it('should merge the whole stack once every layer is ready and pushed', async ($, on) => {
+    const ran: string[] = []
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('command.register', () => ({ value: { command: 'merge' } }))
+    on('process.run', stacked({ ran }))
+
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+    const merged = await $.command.run({ command: 'merge', args: '' })
+    expect(merged.text).toBe('Merged stack: PR #41, #42, #43.')
+    expect(ran).toContain('gh stack merge --yes --merge')
+    expect(ran.some(c => c.startsWith('gh pr merge'))).toBe(false)
+  })
+
+  it('should not merge a stack while a lower layer is not ready', async ($, on) => {
+    const ran: string[] = []
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('command.register', () => ({ value: { command: 'merge' } }))
+    on('process.run', stacked({ ran, rollup41: PENDING }))
+
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+    const refused = await $.command.run({ command: 'merge', args: '' })
+    expect(refused.text).toBe('PR #41 (db) is not ready to merge: ◐ 1/2 checks, waiting.')
+    expect(ran.some(c => c.startsWith('gh stack merge'))).toBe(false)
+  })
+
+  it('should not merge a stack while a layer has unpushed commits', async ($, on) => {
+    const ran: string[] = []
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('command.register', () => ({ value: { command: 'merge' } }))
+    on('process.run', stacked({ ran, localDb: 'h99' }))
+
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+    const refused = await $.command.run({ command: 'merge', args: '' })
+    expect(refused.text).toBe("db is not at PR #41's head: push or pull first.")
+    expect(ran.some(c => c.startsWith('gh stack merge'))).toBe(false)
+  })
+
   for (const surface of ['terminal', 'desktop'] as const) {
     it(`should draw the pull request and toast once its checks pass on ${surface}`, async ($, on) => {
       const clock = mock.clock(on, { now: 0 })
@@ -62,7 +154,7 @@ describe('pr-pilot', () => {
       let rollup = PENDING
       on('session.start', ($, e) => ({ cwd: e.cwd }))
       on('command.register', () => ({ value: { command: 'merge' } }))
-      on('process.run', () => run(view(rollup)))
+      on('process.run', ($, e) => (e.argv[1] === 'stack' ? run('', 2) : run(view(rollup))))
       on('ui.toast', ($, e) => (toasts.push(e.text), { value: undefined }))
       on('ui.render', ($, e) => $.ui.resolve(e).Text({ children: 'beneath' }))
 
@@ -100,7 +192,7 @@ describe('pr-pilot', () => {
     let rollup = PENDING
     on('session.start', ($, e) => ({ cwd: e.cwd }))
     on('command.register', () => ({ value: { command: 'merge' } }))
-    on('process.run', ($, e) => (ran.push(e.argv.join(' ')), run(e.argv[0] === 'git' ? 'abc123\n' : e.argv[2] === 'merge' ? '' : view(rollup))))
+    on('process.run', ($, e) => (ran.push(e.argv.join(' ')), e.argv[1] === 'stack' ? run('', 2) : run(e.argv[0] === 'git' ? 'abc123\n' : e.argv[2] === 'merge' ? '' : view(rollup))))
 
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
     const early = await $.command.run({ command: 'merge', args: '' })
@@ -117,7 +209,7 @@ describe('pr-pilot', () => {
     const ran: string[] = []
     on('session.start', ($, e) => ({ cwd: e.cwd }))
     on('command.register', () => ({ value: { command: 'merge' } }))
-    on('process.run', ($, e) => (ran.push(e.argv.join(' ')), run(e.argv[0] === 'git' ? 'def456\n' : view(GREEN))))
+    on('process.run', ($, e) => (ran.push(e.argv.join(' ')), e.argv[1] === 'stack' ? run('', 2) : run(e.argv[0] === 'git' ? 'def456\n' : view(GREEN))))
 
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
     const refused = await $.command.run({ command: 'merge', args: '' })
