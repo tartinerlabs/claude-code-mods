@@ -25,6 +25,7 @@
 | 🏷 | [auto-session-name](#-auto-session-name) | Session title | Names each session from its first prompt |
 | ⏱ | [cache-clock](#-cache-clock) | Band above the prompt | Counts down to the prompt cache going cold |
 | 📊 | [limit-watch](#-limit-watch) | Band above the prompt, toasts | Shows the 5-hour and weekly usage limits |
+| 🛫 | [pr-pilot](#-pr-pilot) | Band above the prompt, toasts | Shows the branch's PR checks and merges it with `/merge` |
 | ⛅ | [token-weather](#-token-weather) | Band above the prompt | Forecasts how full the context window is |
 
 ---
@@ -72,6 +73,19 @@ Draws the 5-hour and weekly usage limits above the prompt with live reset countd
 ```
 
 <sub>📁 [`plugins/limit-watch`](plugins/limit-watch)</sub>
+
+### 🛫 pr-pilot
+
+Draws the current branch's open pull request above the prompt with its checks and whether it can merge, refreshed each minute and after every turn. Toasts when a run of checks finishes. `/merge` merges it with `gh` and deletes the branch, but only once every check has passed and nothing blocks it. Set the `method` option to `merge` (default), `squash` or `rebase`. Needs the [GitHub CLI](https://cli.github.com), signed in.
+
+```text
+PR #42  ◐ 3/5 checks  waiting                                ← band
+PR #42  ✗ 1 failing: SonarCloud  blocked                     ← red
+PR #42  ✓ 5/5 checks  ready · /merge                         ← green
+PR #42 checks passed, ready to /merge                        ← toast
+```
+
+<sub>📁 [`plugins/pr-pilot`](plugins/pr-pilot)</sub>
 
 ### ⛅ token-weather
 
