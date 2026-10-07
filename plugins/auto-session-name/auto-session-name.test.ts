@@ -22,6 +22,18 @@ describe('auto-session-name', () => {
     expect(ran).toEqual(['color cyan'])
   })
 
+  it('should keep a colour already set with /color', { options: { color: 'cyan' } }, async ($, on) => {
+    on('classic.UserPromptSubmit', () => ({}))
+    on('model.complete', () => ({ value: { isAnswered: true, text: 'Fix login redirect bug', usage } }))
+    on('turn.complete', () => ({ text: '' }))
+    const ran: string[] = []
+    on('command.run', (_, e) => { ran.push(`${e.command} ${e.args}`.trim()); return { text: '' } })
+    await $.command.run({ command: 'color', args: 'red', origin: { kind: 'composer' } })
+    await $.classic.UserPromptSubmit({ prompt: 'the login page redirects in a loop', source: 'user' })
+    await $.turn.complete({ reason: 'answer', answer: 'done' })
+    expect(ran).toEqual(['color red'])
+  })
+
   it('should leave the prompt bar colour alone by default', async ($, on) => {
     on('classic.UserPromptSubmit', () => ({}))
     on('model.complete', () => ({ value: { isAnswered: true, text: 'Fix login redirect bug', usage } }))
