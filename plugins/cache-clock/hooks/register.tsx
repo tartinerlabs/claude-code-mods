@@ -47,14 +47,17 @@ export const register: Register = (on, options) => {
 
     const { Box, Text } = $.ui.resolve(e)
     const left = reading.at + ttlMs - (await $.clock.now())
+    const full = describe(reading, left)
+    // On a narrow band keep only the state, so the row does not wrap.
+    const text = full.length <= e.props.bodyColumns - 2 ? full : full.split(' · ')[0]
     // Stack above whatever the plugins beneath draw, so other bands stay.
     const below = await next(e)
 
     return (
       <Box flexDirection="column">
         <Box flexDirection="row" paddingX={1}>
-          <Text color={left <= 0 ? 'red' : left < 60_000 ? 'yellow' : 'green'}>
-            {describe(reading, left)}
+          <Text color={left <= 0 ? 'red' : left < 60_000 ? 'yellow' : 'green'} wrap="truncate-end">
+            {text}
           </Text>
         </Box>
         {below}

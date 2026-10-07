@@ -52,6 +52,9 @@ export const register: Register = (on) => {
 
     const { Box, Text } = $.ui.resolve(e)
     const now = await $.clock.now()
+    // Drop the reset countdowns when the full row would not fit the band.
+    const width = latest.reduce((n, l) => n + label(l.kind).length + 1 + entry(l, now).length, 0) + 2 * (latest.length - 1)
+    const isWide = width <= e.props.bodyColumns - 2
     // Stack above whatever the plugins beneath draw, so other bands stay.
     const below = await next(e)
 
@@ -59,9 +62,9 @@ export const register: Register = (on) => {
       <Box flexDirection="column">
         <Box flexDirection="row" paddingX={1} gap={2}>
           {latest.map(limit => (
-            <Text key={limit.kind}>
+            <Text key={limit.kind} wrap="truncate-end">
               <Text dimColor>{label(limit.kind)} </Text>
-              <Text color={colour(limit.percentUsed)}>{entry(limit, now)}</Text>
+              <Text color={colour(limit.percentUsed)}>{isWide ? entry(limit, now) : `${limit.percentUsed}%`}</Text>
             </Text>
           ))}
         </Box>

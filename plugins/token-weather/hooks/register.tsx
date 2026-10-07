@@ -46,7 +46,15 @@ export const register: Register = on => {
     const { Box, Text } = $.ui.resolve(e)
     const prev = history.at(-2)
     const f = FORECAST.find(b => now.percent < b.upTo) ?? FORECAST[4]
-    const isWide = e.props.bodyColumns >= 60
+    const head = `${f.icon}  ${f.word}`
+    const percent = `  ${now.percent}% of context`
+    const size = `  ${short(now.tokens)} / ${short(now.window)}`
+    const spark = sparkline(history)
+    const change = prev ? trend(now.tokens - prev.tokens) : ''
+    // Add the history only when the whole row fits the band, so it does not wrap.
+    const room = e.props.bodyColumns - 2
+    const isWide = (head + percent + size + '   last turns ' + spark + change).length <= room
+    const hasSize = (head + percent + size).length <= room
     // Stack above whatever the plugins beneath draw, so other bands stay.
     const below = await next(e)
 
@@ -54,13 +62,13 @@ export const register: Register = on => {
       <Box flexDirection="column">
         <Box flexDirection="row" paddingX={1}>
           <Text color={f.color} bold>
-            {`${f.icon}  ${f.word}`}
+            {head}
           </Text>
-          <Text>{`  ${now.percent}% of context`}</Text>
-          <Text dimColor>{`  ${short(now.tokens)} / ${short(now.window)}`}</Text>
+          <Text wrap="truncate-end">{percent}</Text>
+          {hasSize && <Text dimColor>{size}</Text>}
           {isWide && <Text dimColor>{'   last turns '}</Text>}
-          {isWide && <Text color={f.color}>{sparkline(history)}</Text>}
-          {isWide && prev && <Text dimColor>{trend(now.tokens - prev.tokens)}</Text>}
+          {isWide && <Text color={f.color}>{spark}</Text>}
+          {isWide && prev && <Text dimColor>{change}</Text>}
         </Box>
         {below}
       </Box>

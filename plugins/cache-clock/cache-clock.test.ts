@@ -93,4 +93,31 @@ describe('cache-clock', () => {
 
     await ui.unmount()
   })
+
+  test('keeps to the countdown on a narrow band', async ($, on) => {
+    mock.clock(on, { now: 1_000_000 })
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('turn.step', async function* ($, e) {
+      return {
+        turnId: e.turnId,
+        index: e.index,
+        answer: '',
+        toolUses: [],
+        stopReason: 'end_turn',
+        usage: { model: e.model, input_tokens: 400, cache_read_input_tokens: 92_000, cache_creation_input_tokens: 7_600, output_tokens: 1_000 },
+      }
+    })
+    on('ui.render', ($, e) => $.ui.resolve(e).Box({}))
+
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+    const ui = await $.ui.mount({ plugin: 'cache-clock', surface: 'terminal', component: 'AbovePrompt', props: { ...BAND, bodyColumns: 20 } })
+    const step = $.turn.step(STEP)
+    for await (const _ of step) {
+      // drain
+    }
+    await step.result
+    expect(await ui.find({ type: 'Text', text: 'cache ● 5:00 left' })).toBeDefined()
+
+    await ui.unmount()
+  })
 })

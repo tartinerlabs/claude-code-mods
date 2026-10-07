@@ -84,4 +84,22 @@ describe('limit-watch', () => {
 
     await ui.unmount()
   })
+
+  test('drops the reset countdowns on a narrow band', async ($, on) => {
+    mock.clock(on, { now: NOW })
+    const limits = [
+      { kind: 'five_hour', percentUsed: 25, resetsAt: '2026-10-07T19:30:00Z' },
+      { kind: 'seven_day', percentUsed: 65, resetsAt: '2026-10-14T08:00:00Z' },
+    ]
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('session.usage', () => ({ value: { startedAt: NOW, context: { window: 200_000 }, rateLimits: limits } }))
+    on('ui.render', ($, e) => $.ui.resolve(e).Box({}))
+
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+    const ui = await $.ui.mount({ plugin: 'limit-watch', surface: 'terminal', component: 'AbovePrompt', props: { ...BAND, bodyColumns: 30 } })
+    expect(await ui.find({ type: 'Text', text: '25%' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /3h45m/ })).toBeUndefined()
+
+    await ui.unmount()
+  })
 })

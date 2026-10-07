@@ -53,4 +53,29 @@ describe('token-weather', () => {
       await ui.unmount()
     })
   }
+
+  test('drops the history, then the token counts, as the band narrows', async ($, on) => {
+    let tokens = 36_100
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('session.usage', () => ({
+      value: { startedAt: 0, rateLimits: [], context: { tokens, window: 200_000, percent: Math.round(tokens / 2_000) } },
+    }))
+    on('turn.complete', () => ({ text: '' }))
+    on('ui.render', ($, e) => $.ui.resolve(e).Box({}))
+
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+    tokens = 134_400
+    await $.turn.complete({ reason: 'answer', answer: 'ok', durationMs: 1, isAborted: false, turnId: 't1' })
+
+    const band = { hasSurvey: false, isWorking: false, maxRows: 10, scroll: { offset: 0, bodyRows: 10 }, view: {} }
+    const medium = await $.ui.mount({ plugin: 'token-weather', surface: 'terminal', component: 'AbovePrompt', props: { ...band, bodyColumns: 60 } })
+    expect(await medium.find({ type: 'Text', text: /134\.4k \/ 200k/ })).toBeDefined()
+    expect(await medium.find({ type: 'Text', text: /last turn/ })).toBeUndefined()
+    await medium.unmount()
+
+    const narrow = await $.ui.mount({ plugin: 'token-weather', surface: 'terminal', component: 'AbovePrompt', props: { ...band, bodyColumns: 30 } })
+    expect(await narrow.find({ type: 'Text', text: /67% of context/ })).toBeDefined()
+    expect(await narrow.find({ type: 'Text', text: /200k/ })).toBeUndefined()
+    await narrow.unmount()
+  })
 })
