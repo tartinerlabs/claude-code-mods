@@ -1,7 +1,7 @@
 {
-  "plugins/auto-resume": "0.1.0",
-  "plugins/auto-session-name": "0.1.0",
-  "plugins/cache-clock": "0.1.0",
-  "plugins/limit-watch": "0.1.0",
-  "plugins/token-weather": "0.1.0"
+  "plugins/auto-resume": "0.2.0",
+  "plugins/auto-session-name": "0.2.0",
+  "plugins/cache-clock": "0.2.0",
+  "plugins/limit-watch": "0.2.0",
+  "plugins/token-weather": "0.1.1"
 }
