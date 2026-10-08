@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.6.0...v0.7.0) (2026-10-08)
+
+
+### Features
+
+* **smart-compact:** add checkpoint compaction ([a1dff80](https://github.com/tartinerlabs/claude-code-mods/commit/a1dff80894fbfeb66441a7c46cbd22aa375c28e5))
+
 ## [0.6.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.5.0...v0.6.0) (2026-10-07)
 
 
