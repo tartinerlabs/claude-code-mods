@@ -66,10 +66,13 @@ const STACK = JSON.stringify({
 })
 
 /** Stands in for gh and git on a stack of db #41, api #42 (checked out) and ui #43 above `auth`, already merged. */
-const stacked = (state: { rollup41?: object[]; localDb?: string; ran?: string[] } = {}) => ($: unknown, e: { argv: readonly string[] }) => {
+const stacked = (state: { rollup41?: object[]; localDb?: string; merged?: string; ran?: string[] } = {}) => ($: unknown, e: { argv: readonly string[] }) => {
   const argv = e.argv
   state.ran?.push(argv.join(' '))
   if (argv[1] === 'stack') return run(argv[2] === 'view' ? STACK : '')
+  if (argv[1] === 'api') return run('')
+  if (argv.includes('state')) return run(`${state.merged ?? 'MERGED'}\n`)
+  if (argv[0] === 'git' && argv[1] !== 'rev-parse') return run('')
   if (argv[0] === 'git') return run(`${argv[3] === 'refs/heads/db^{commit}' ? (state.localDb ?? 'h41') : `h${{ api: 42, ui: 43 }[argv[3]!.slice(11, -9) as 'api' | 'ui']}`}\n`)
   const number = argv[3] === '--json' ? 42 : Number(argv[3])
 
@@ -82,6 +85,7 @@ describe('parseStack', () => {
     expect(stack).toEqual({
       position: 2,
       total: 3,
+      trunk: 'main',
       layers: [
         { branch: 'db', pr: 41 },
         { branch: 'api', pr: 42 },
@@ -91,7 +95,7 @@ describe('parseStack', () => {
   })
 
   it('should not place a branch outside the stack', () => {
-    expect(parseStack({ currentBranch: 'main', branches: [{ name: 'db', isMerged: false }] })).toBeNull()
+    expect(parseStack({ trunk: 'main', currentBranch: 'main', branches: [{ name: 'db', isMerged: false }] })).toBeNull()
   })
 })
 
@@ -118,9 +122,26 @@ describe('pr-pilot', () => {
 
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
     const merged = await $.command.run({ command: 'merge', args: '' })
-    expect(merged.text).toBe('Merged stack: PR #41, #42, #43.')
+    expect(merged.text).toBe('Merged stack: PR #41, #42, #43. Deleted db, api, ui and switched to main.')
     expect(ran).toContain('gh stack merge --yes --merge')
     expect(ran.some(c => c.startsWith('gh pr merge'))).toBe(false)
+    expect(ran).toContain('git checkout main')
+    for (const branch of ['db', 'api', 'ui']) {
+      expect(ran).toContain(`gh api -X DELETE repos/{owner}/{repo}/git/refs/heads/${branch}`)
+      expect(ran).toContain(`git branch -D ${branch}`)
+    }
+  })
+
+  it('should keep the branches while the stack waits in a merge queue', async ($, on) => {
+    const ran: string[] = []
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('command.register', () => ({ value: { command: 'merge' } }))
+    on('process.run', stacked({ ran, merged: 'OPEN' }))
+
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+    const queued = await $.command.run({ command: 'merge', args: '' })
+    expect(queued.text).toBe('Merged stack: PR #41, #42, #43. Branches kept until every pull request has merged.')
+    expect(ran.some(c => c.startsWith('git branch -D') || c.startsWith('gh api'))).toBe(false)
   })
 
   it('should not merge a stack while a lower layer is not ready', async ($, on) => {

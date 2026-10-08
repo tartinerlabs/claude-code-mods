@@ -52,14 +52,14 @@ export function mergeEntry(pr: Pr): [string, string] {
   return ['waiting', 'gray']
 }
 
-type StackView = { currentBranch: string; branches: { name: string; isMerged: boolean; pr?: { number: number } }[] }
+type StackView = { trunk: string; currentBranch: string; branches: { name: string; isMerged: boolean; pr?: { number: number } }[] }
 
 /** The current branch's place among the unmerged layers of `gh stack view --json`, or null when it is not one. */
 export function parseStack(view: StackView): Stack | null {
   const layers = view.branches.filter(b => !b.isMerged).map(b => ({ branch: b.name, pr: b.pr?.number }))
   const index = layers.findIndex(l => l.branch === view.currentBranch)
 
-  return index < 0 ? null : { position: index + 1, total: layers.length, layers }
+  return index < 0 ? null : { position: index + 1, total: layers.length, trunk: view.trunk, layers }
 }
 
 async function fetchStack($: EngineInterface): Promise<Stack | null> {
@@ -133,8 +133,34 @@ async function mergeStack($: EngineInterface, pr: Pr, stack: Stack, method: stri
   }
 
   const ran = await $.process.run(['gh', 'stack', 'merge', '--yes', `--${method}`], { timeoutMs: 300_000 })
+  if (ran.exitCode !== 0) return `gh stack merge failed: ${clean((ran.stderr || ran.stdout).trim())}`
 
-  return ran.exitCode === 0 ? `Merged stack: PR #${numbers.join(', #')}.` : `gh stack merge failed: ${clean((ran.stderr || ran.stdout).trim())}`
+  return `Merged stack: PR #${numbers.join(', #')}.${await deleteLayers($, stack)}`
+}
+
+/**
+ * Deletes every layer's branch, local and remote, and switches to the trunk, as `gh pr merge -d` does
+ * for one pull request, which `gh stack merge` has no flag for. It waits until every pull request has
+ * merged, since deleting a head branch while the stack sits in a merge queue would close it.
+ */
+async function deleteLayers($: EngineInterface, stack: Stack) {
+  for (const layer of stack.layers) {
+    const state = await $.process.run(['gh', 'pr', 'view', String(layer.pr), '--json', 'state', '--jq', '.state'], { timeoutMs: 15_000 }).catch(() => null)
+    if (state?.stdout.trim() !== 'MERGED') return ' Branches kept until every pull request has merged.'
+  }
+  const checkout = await $.process.run(['git', 'checkout', stack.trunk]).catch(() => null)
+  if (checkout?.exitCode !== 0) return ` Could not switch to ${stack.trunk}, so the branches were kept.`
+  await $.process.run(['git', 'pull', '--ff-only'], { timeoutMs: 60_000 }).catch(() => null)
+
+  const kept: string[] = []
+  for (const { branch } of stack.layers) {
+    // Fails harmlessly when the repository already deleted the head branch on merge.
+    await $.process.run(['gh', 'api', '-X', 'DELETE', `repos/{owner}/{repo}/git/refs/heads/${branch}`], { timeoutMs: 15_000 }).catch(() => null)
+    const deleted = await $.process.run(['git', 'branch', '-D', branch]).catch(() => null)
+    if (deleted?.exitCode !== 0) kept.push(branch)
+  }
+
+  return kept.length ? ` Switched to ${stack.trunk}, but could not delete ${kept.join(', ')} locally.` : ` Deleted ${stack.layers.map(l => l.branch).join(', ')} and switched to ${stack.trunk}.`
 }
 
 export const register: Register = (on, options) => {
