@@ -1,6 +1,6 @@
 {
   "name": "tartinerlabs-mods",
-  "description": "Claude Code mods — live panes, prompt bands, status line entries, toasts, and tool-call hooks",
+  "description": "Claude Code mods \u2014 live panes, prompt bands, status line entries, toasts, and tool-call hooks",
   "owner": {
     "name": "Tartiner Labs",
     "url": "https://tartinerlabs.com"
@@ -35,6 +35,11 @@
       "name": "pr-pilot",
       "source": "./plugins/pr-pilot",
       "description": "The current branch's pull request above the prompt, with its checks and whether it can merge, toasts when checks finish, and /merge for single PRs and gh-stack stacks."
+    },
+    {
+      "name": "smart-compact",
+      "source": "./plugins/smart-compact",
+      "description": "Compacts between turns when the context is full enough, sooner after a commit, PR, approved plan or finished todo list, or when the prompt cache is about to go cold or the 5-hour limit runs low."
     }
   ]
 }
