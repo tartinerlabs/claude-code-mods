@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/tartinerlabs/claude-code-mods/compare/v0.7.0...v0.7.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **pr-pilot:** delete stack branches after /merge ([b4a8740](https://github.com/tartinerlabs/claude-code-mods/commit/b4a87405432fe50b4c14eeeba57014591e09d0ef))
+
 ## [0.7.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.6.0...v0.7.0) (2026-10-08)
 
 

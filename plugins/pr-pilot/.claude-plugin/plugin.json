@@ -1,7 +1,7 @@
 {
   "name": "pr-pilot",
   "displayName": "PR Pilot",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Shows the current branch's pull request above the prompt, with its checks and whether it can merge, toasts when checks finish, and merges it, or its whole gh-stack stack, with /merge.",
   "author": {
     "name": "Tartiner Labs",
