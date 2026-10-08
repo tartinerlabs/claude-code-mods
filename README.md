@@ -26,6 +26,7 @@
 | ⏱ | [cache-clock](#-cache-clock) | Band above the prompt | Counts down to the prompt cache going cold |
 | 📊 | [limit-watch](#-limit-watch) | Band above the prompt, toasts | Shows the 5-hour and weekly usage limits |
 | 🛫 | [pr-pilot](#-pr-pilot) | Band above the prompt, toasts | Shows the branch's PR checks and merges it with `/merge` |
+| 🗜 | [smart-compact](#-smart-compact) | Toast | Compacts between turns, sooner at checkpoints or when the cache is cooling |
 | ⛅ | [token-weather](#-token-weather) | Band above the prompt | Forecasts how full the context window is |
 
 ---
@@ -87,6 +88,24 @@ PR #42 checks passed, ready to /merge                        ← toast
 ```
 
 <sub>📁 [`plugins/pr-pilot`](plugins/pr-pilot)</sub>
+
+### 🗜 smart-compact
+
+Compacts the conversation between turns, never during one, weighing several factors against the context's fill. Past the `threshold` option (60, 70 default, or 80%) it compacts about ten seconds after a turn ends. It compacts sooner when compacting is cheapest or most worth it:
+
+- **Checkpoints**, 20 points lower: a turn that committed, opened or merged a PR (`gh pr`, `gh stack`), had a plan approved, finished its todo list, or switched branch or worktree. The summary is told what to keep for each, such as the approved plan verbatim. A checkpoint counts only until the next turn starts. Set `checkpoints` to `off` to ignore them.
+- **Cache cooling**, 20 points lower in the last minute before the prompt cache goes cold, so the summary still reads the conversation from cache; 10 lower once it is cold, so the next turn re-writes a short prefix instead of a long one.
+- **5-hour limit**, 10 points lower while it is at 80% or more.
+
+Nothing takes it under the `floor` option (30, 40 default, or 50%), and it tries at most once per idle stretch. Set `ttl` to `1h` when extended prompt caching is on.
+
+```text
+Compacted at 52%: committed                                  ← toast
+Compacted at 55%: cache cooling                              ← toast
+Compacted at 74%: context high, 5h limit at 86%              ← toast
+```
+
+<sub>📁 [`plugins/smart-compact`](plugins/smart-compact)</sub>
 
 ### ⛅ token-weather
 

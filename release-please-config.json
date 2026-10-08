@@ -10,6 +10,7 @@
         { "type": "json", "path": "plugins/cache-clock/.claude-plugin/plugin.json", "jsonpath": "$.version" },
         { "type": "json", "path": "plugins/limit-watch/.claude-plugin/plugin.json", "jsonpath": "$.version" },
         { "type": "json", "path": "plugins/pr-pilot/.claude-plugin/plugin.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "plugins/smart-compact/.claude-plugin/plugin.json", "jsonpath": "$.version" },
         { "type": "json", "path": "plugins/token-weather/.claude-plugin/plugin.json", "jsonpath": "$.version" }
       ]
     }
