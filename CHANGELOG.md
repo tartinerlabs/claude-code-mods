@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.10.0...v0.11.0) (2026-10-10)
+
+
+### Features
+
+* **auto-session-name:** restore color option ([db3eca5](https://github.com/tartinerlabs/claude-code-mods/commit/db3eca5ba7af33ac28002757deaf925786d6d0be))
+
 ## [0.10.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.9.0...v0.10.0) (2026-10-10)
 
 
