@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.9.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.8.0...v0.9.0) (2026-10-10)
+
+
+### Features
+
+* **cache-clock:** show emoji in band ([f62b27e](https://github.com/tartinerlabs/claude-code-mods/commit/f62b27eab84fd5629e86efa86e5388685ef6ce2b))
+* **limit-watch:** show emoji in band ([5c157fb](https://github.com/tartinerlabs/claude-code-mods/commit/5c157fb8b6145ced7703dd8006d54ab3103d06aa))
+* **pr-pilot:** show emoji in band ([cd9326f](https://github.com/tartinerlabs/claude-code-mods/commit/cd9326f731d32bf0366ffb3becfce160a3e91b64))
+* **token-weather:** update band mid-turn ([4b33c4e](https://github.com/tartinerlabs/claude-code-mods/commit/4b33c4ec3552b6b8bae0b2438ee80379b5a12734))
+* **token-weather:** use emoji forecast icons ([38f533f](https://github.com/tartinerlabs/claude-code-mods/commit/38f533fe86f55d4e6928c9fb6af7a10fd2048bfb))
+
 ## [0.8.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.7.1...v0.8.0) (2026-10-10)
 
 
