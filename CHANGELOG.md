@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.8.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.7.1...v0.8.0) (2026-10-10)
+
+
+### Features
+
+* **auto-session-name:** remove color option ([12a4390](https://github.com/tartinerlabs/claude-code-mods/commit/12a43909d0570d5b37ee7ca4b0f38796635466ce))
+
+
+### Bug Fixes
+
+* **pr-pilot:** clear band after /merge ([9903edb](https://github.com/tartinerlabs/claude-code-mods/commit/9903edb93f4f8c4fcd37ea73fa78b480f730ea62))
+
 ## [0.7.1](https://github.com/tartinerlabs/claude-code-mods/compare/v0.7.0...v0.7.1) (2026-10-08)
 
 
