@@ -25,5 +25,4 @@ jobs:
       - if: steps.release.outputs.prs_created == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR: ${{ steps.release.outputs.pr }}
-        run: gh pr edit "$(jq -r .number <<< "$PR")" --repo "$GITHUB_REPOSITORY" --add-assignee "$GITHUB_ACTOR" --add-reviewer "$GITHUB_ACTOR"
+        run: gh pr edit release-please--branches--main --repo "$GITHUB_REPOSITORY" --add-assignee "$GITHUB_ACTOR" --add-reviewer "$GITHUB_ACTOR"
