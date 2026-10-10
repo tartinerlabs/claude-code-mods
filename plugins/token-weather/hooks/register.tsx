@@ -6,11 +6,11 @@ import type { TokenWeatherReading } from '../types'
 const HISTORY = 12
 const BARS = '▁▂▃▄▅▆▇█'
 const FORECAST = [
-  { upTo: 25, icon: '☀', word: 'Clear', color: 'yellow' },
-  { upTo: 50, icon: '☁', word: 'Cloudy', color: 'cyan' },
-  { upTo: 75, icon: '☂', word: 'Showers', color: 'blue' },
-  { upTo: 90, icon: '☇', word: 'Storm', color: 'magenta' },
-  { upTo: Infinity, icon: '↯', word: 'Compact soon', color: 'red' },
+  { upTo: 25, icon: '🌞', word: 'Clear', color: 'yellow' },
+  { upTo: 50, icon: '⛅', word: 'Cloudy', color: 'cyan' },
+  { upTo: 75, icon: '☔', word: 'Showers', color: 'blue' },
+  { upTo: 90, icon: '⚡', word: 'Storm', color: 'magenta' },
+  { upTo: Infinity, icon: '🚨', word: 'Compact soon', color: 'red' },
 ] as const
 
 // Held by the host, so the history survives a hot reload of this file.
@@ -65,15 +65,17 @@ export const register: Register = on => {
     // Mid-turn, compare with where the turn began.
     const prev = current ? history.at(-1) : history.at(-2)
     const f = FORECAST.find(b => now.percent < b.upTo) ?? FORECAST[4]
-    const head = `${f.icon}  ${f.word}`
+    const head = `${f.icon} ${f.word}`
+    // An emoji is two columns wide, whatever its `.length`.
+    const headWidth = 3 + f.word.length
     const percent = `  ${now.percent}% of context`
     const size = `  ${short(now.tokens)} / ${short(now.window)}`
     const spark = sparkline(history)
     const change = prev ? trend(now.tokens - prev.tokens, current ? 'this turn' : 'last turn') : ''
     // Add the history only when the whole row fits the band, so it does not wrap.
     const room = e.props.bodyColumns - 2
-    const isWide = (head + percent + size + '   last turns ' + spark + change).length <= room
-    const hasSize = (head + percent + size).length <= room
+    const isWide = headWidth + (percent + size + '   last turns ' + spark + change).length <= room
+    const hasSize = headWidth + (percent + size).length <= room
     // Stack above whatever the plugins beneath draw, so other bands stay.
     const below = await next(e)
 
