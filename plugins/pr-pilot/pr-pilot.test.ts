@@ -226,6 +226,21 @@ describe('pr-pilot', () => {
     expect(ran).toContain('gh pr merge 42 --squash --delete-branch --match-head-commit abc123')
   })
 
+  it('should clear the band after a merge even if gh still reports the pull request open', async ($, on) => {
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('command.register', () => ({ value: { command: 'merge' } }))
+    on('process.run', ($, e) => (e.argv[1] === 'stack' ? run('', 2) : run(e.argv[0] === 'git' ? 'abc123\n' : e.argv[2] === 'merge' ? '' : view(GREEN))))
+    on('ui.render', ($, e) => $.ui.resolve(e).Text({ children: 'beneath' }))
+
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+    const ui = await $.ui.mount({ plugin: 'pr-pilot', surface: 'terminal', component: 'AbovePrompt', props: BAND })
+    expect(await ui.find({ type: 'Text', text: 'ready · /merge' })).toBeDefined()
+
+    await $.command.run({ command: 'merge', args: '' })
+    expect(await ui.find({ type: 'Text', text: 'PR #42' })).toBeUndefined()
+    await ui.unmount()
+  })
+
   it('should not merge while the local branch is ahead of the pull request', async ($, on) => {
     const ran: string[] = []
     on('session.start', ($, e) => ({ cwd: e.cwd }))

@@ -92,9 +92,14 @@ async function fetchPr($: EngineInterface, number?: number): Promise<Pr | null> 
   }
 }
 
+// Bumped by every refresh and by a merge, so a slower, older refresh cannot overwrite a newer result.
+let latest = 0
+
 async function refresh($: EngineInterface) {
+  const id = ++latest
   const pr = await fetchPr($)
   const stack = pr && (await fetchStack($))
+  if (id !== latest) return
   if (pr && stack) pr.stack = stack
   const was = await read($, current)
   await update($, current, () => pr)
@@ -201,7 +206,13 @@ export const register: Register = (on, options) => {
 
     // Pinned to the head that was checked, so a push since then is not merged unchecked.
     const ran = await $.process.run(['gh', 'pr', 'merge', String(pr.number), `--${method}`, '--delete-branch', '--match-head-commit', pr.head], { timeoutMs: 120_000 })
-    await refresh($)
+    if (ran.exitCode === 0) {
+      // GitHub may still report the pull request as open right after the merge, so clear the band instead of asking.
+      latest += 1
+      await update($, current, () => null)
+    } else {
+      await refresh($)
+    }
 
     return { text: ran.exitCode === 0 ? `Merged PR #${pr.number}.` : `gh pr merge failed: ${clean((ran.stderr || ran.stdout).trim())}` }
   })
