@@ -49,8 +49,8 @@ describe('tally', () => {
   })
 
   it('should name failing checks first', () => {
-    expect(checksEntry({ total: 3, passed: 1, pending: 1, failed: ['e2e'] })).toEqual(['✗ 1 failing: e2e', 'red'])
-    expect(checksEntry({ total: 3, passed: 2, pending: 1, failed: [] })).toEqual(['◐ 2/3 checks', 'yellow'])
+    expect(checksEntry({ total: 3, passed: 1, pending: 1, failed: ['e2e'] })).toEqual(['❌ 1 failing: e2e', 'red'])
+    expect(checksEntry({ total: 3, passed: 2, pending: 1, failed: [] })).toEqual(['⏳ 2/3 checks', 'yellow'])
   })
 })
 
@@ -109,7 +109,7 @@ describe('pr-pilot', () => {
 
       await $.session.start({ surface, isInteractive: true, cwd: '/work' })
       const ui = await $.ui.mount({ plugin: 'pr-pilot', surface, component: 'AbovePrompt', props: BAND })
-      expect(await ui.find({ type: 'Text', text: 'stack 2/3' })).toBeDefined()
+      expect(await ui.find({ type: 'Text', text: '📚 stack 2/3' })).toBeDefined()
       await ui.unmount()
     })
   }
@@ -152,7 +152,7 @@ describe('pr-pilot', () => {
 
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
     const refused = await $.command.run({ command: 'merge', args: '' })
-    expect(refused.text).toBe('PR #41 (db) is not ready to merge: ◐ 1/2 checks, waiting.')
+    expect(refused.text).toBe('PR #41 (db) is not ready to merge: ⏳ 1/2 checks, waiting.')
     expect(ran.some(c => c.startsWith('gh stack merge'))).toBe(false)
   })
 
@@ -181,12 +181,12 @@ describe('pr-pilot', () => {
 
       await $.session.start({ surface, isInteractive: true, cwd: '/work' })
       const ui = await $.ui.mount({ plugin: 'pr-pilot', surface, component: 'AbovePrompt', props: BAND })
-      expect(await ui.find({ type: 'Text', text: '◐ 1/2 checks', props: { color: 'yellow' } })).toBeDefined()
+      expect(await ui.find({ type: 'Text', text: '⏳ 1/2 checks', props: { color: 'yellow' } })).toBeDefined()
       expect(await ui.find({ type: 'Text', text: 'beneath' })).toBeDefined()
 
       rollup = GREEN
       await clock.advance(60_000)
-      expect(await ui.find({ type: 'Text', text: '✓ 2/2 checks', props: { color: 'green' } })).toBeDefined()
+      expect(await ui.find({ type: 'Text', text: '✅ 2/2 checks', props: { color: 'green' } })).toBeDefined()
       expect(await ui.find({ type: 'Text', text: 'ready · /merge' })).toBeDefined()
       expect(toasts).toEqual(['PR #42 checks passed, ready to /merge'])
 
@@ -205,7 +205,7 @@ describe('pr-pilot', () => {
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
     const ui = await $.ui.mount({ plugin: 'pr-pilot', surface: 'terminal', component: 'AbovePrompt', props: BAND })
     expect(await ui.find({ type: 'Text', text: 'beneath' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: 'PR #42' })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: '🔀 PR #42' })).toBeUndefined()
   })
 
   it('should merge with the configured method only once ready', { options: { method: 'squash' } }, async ($, on) => {
@@ -217,7 +217,7 @@ describe('pr-pilot', () => {
 
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
     const early = await $.command.run({ command: 'merge', args: '' })
-    expect(early.text).toBe('PR #42 is not ready to merge: ◐ 1/2 checks, waiting.')
+    expect(early.text).toBe('PR #42 is not ready to merge: ⏳ 1/2 checks, waiting.')
     expect(ran.some(c => c.startsWith('gh pr merge'))).toBe(false)
 
     rollup = GREEN
@@ -237,7 +237,7 @@ describe('pr-pilot', () => {
     expect(await ui.find({ type: 'Text', text: 'ready · /merge' })).toBeDefined()
 
     await $.command.run({ command: 'merge', args: '' })
-    expect(await ui.find({ type: 'Text', text: 'PR #42' })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: '🔀 PR #42' })).toBeUndefined()
     await ui.unmount()
   })
 

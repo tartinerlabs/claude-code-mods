@@ -35,10 +35,10 @@ export function isReady(pr: Pr) {
 /** The band's checks entry and its colour. */
 export function checksEntry({ total, passed, pending, failed }: Checks): [string, string] {
   if (total === 0) return ['no checks', 'gray']
-  if (failed.length) return [`✗ ${failed.length} failing: ${failed.join(', ')}`, 'red']
-  if (pending) return [`◐ ${passed}/${total} checks`, 'yellow']
+  if (failed.length) return [`❌ ${failed.length} failing: ${failed.join(', ')}`, 'red']
+  if (pending) return [`⏳ ${passed}/${total} checks`, 'yellow']
 
-  return [`✓ ${total}/${total} checks`, 'green']
+  return [`✅ ${total}/${total} checks`, 'green']
 }
 
 /** The band's merge entry and its colour. */
@@ -233,8 +233,8 @@ export const register: Register = (on, options) => {
     return (
       <Box flexDirection="column">
         <Box flexDirection="row" paddingX={1} gap={2}>
-          <Text dimColor>PR #{pr.number}</Text>
-          {pr.stack && <Text dimColor>stack {pr.stack.position}/{pr.stack.total}</Text>}
+          <Text dimColor>🔀 PR #{pr.number}</Text>
+          {pr.stack && <Text dimColor>📚 stack {pr.stack.position}/{pr.stack.total}</Text>}
           <Text color={checksColour} wrap="truncate-end">{checks}</Text>
           <Text color={mergeColour}>{merge}</Text>
         </Box>
