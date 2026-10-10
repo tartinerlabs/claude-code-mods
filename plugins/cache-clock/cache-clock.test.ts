@@ -45,14 +45,14 @@ describe('cache-clock', () => {
       }
       await step.result
       await clock.advance(1_000)
-      expect(await ui.find({ type: 'Text', text: 'cache ● 4:59 left · 92% hit' })).toBeDefined()
+      expect(await ui.find({ type: 'Text', text: '🔥 cache 4:59 left · 92% hit' })).toBeDefined()
       expect(await ui.find({ type: 'Text', text: 'beneath' })).toBeDefined()
 
       await clock.advance(60_000)
-      expect(await ui.find({ type: 'Text', text: 'cache ● 3:59 left · 92% hit' })).toBeDefined()
+      expect(await ui.find({ type: 'Text', text: '🔥 cache 3:59 left · 92% hit' })).toBeDefined()
 
       await clock.advance(240_000)
-      expect(await ui.find({ type: 'Text', text: 'cache ○ cold · next turn re-writes 101k' })).toBeDefined()
+      expect(await ui.find({ type: 'Text', text: '🧊 cache cold · next turn re-writes 101k' })).toBeDefined()
 
       // A subagent's request leaves the main cache's clock alone.
       const sub = $.turn.step({ ...STEP, agentId: 'sub' })
@@ -89,7 +89,7 @@ describe('cache-clock', () => {
       // drain
     }
     await step.result
-    expect(await ui.find({ type: 'Text', text: 'cache ● 60:00 left · 0% hit' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '🔥 cache 60:00 left · 0% hit' })).toBeDefined()
 
     await ui.unmount()
   })
@@ -116,7 +116,7 @@ describe('cache-clock', () => {
       // drain
     }
     await step.result
-    expect(await ui.find({ type: 'Text', text: 'cache ● 5:00 left' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '🔥 cache 5:00 left' })).toBeDefined()
 
     await ui.unmount()
   })

@@ -71,13 +71,13 @@ export function describe(reading: CacheClockReading, left: number) {
     // The next request writes the whole prefix again.
     const prefix = reading.read + reading.write + reading.input + reading.output
 
-    return `cache ○ cold · next turn re-writes ${short(prefix)}`
+    return `🧊 cache cold · next turn re-writes ${short(prefix)}`
   }
 
   const prompt = reading.read + reading.write + reading.input
   const hit = prompt === 0 ? 0 : Math.round((reading.read / prompt) * 100)
 
-  return `cache ● ${clock(left)} left · ${hit}% hit`
+  return `🔥 cache ${clock(left)} left · ${hit}% hit`
 }
 
 function clock(ms: number) {
