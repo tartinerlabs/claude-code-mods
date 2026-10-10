@@ -5,6 +5,7 @@ import type { Limit, Warned } from '../types'
 
 const LEVELS = [95, 80]
 const LABELS: Record<string, string> = { five_hour: '5h', seven_day: '7d', spend_limit: 'spend' }
+const ICONS: Record<string, string> = { five_hour: '🕔', seven_day: '📅', spend_limit: '💳' }
 
 // Held by the host, so a hot reload keeps the band and does not toast the same threshold twice.
 const limits = atom({ plugin: 'limit-watch', key: 'limits' } as const, [] as Limit[])
@@ -53,7 +54,7 @@ export const register: Register = (on) => {
     const { Box, Text } = $.ui.resolve(e)
     const now = await $.clock.now()
     // Drop the reset countdowns when the full row would not fit the band.
-    const width = latest.reduce((n, l) => n + label(l.kind).length + 1 + entry(l, now).length, 0) + 2 * (latest.length - 1)
+    const width = latest.reduce((n, l) => n + heading(l.kind).length + 1 + entry(l, now).length, 0) + 2 * (latest.length - 1)
     const isWide = width <= e.props.bodyColumns - 2
     // Stack above whatever the plugins beneath draw, so other bands stay.
     const below = await next(e)
@@ -63,7 +64,7 @@ export const register: Register = (on) => {
         <Box flexDirection="row" paddingX={1} gap={2}>
           {latest.map(limit => (
             <Text key={limit.kind} wrap="truncate-end">
-              <Text dimColor>{label(limit.kind)} </Text>
+              <Text dimColor>{heading(limit.kind)} </Text>
               <Text color={colour(limit.percentUsed)}>{isWide ? entry(limit, now) : `${limit.percentUsed}%`}</Text>
             </Text>
           ))}
@@ -87,6 +88,11 @@ export function entry(limit: SessionRateLimit, now: number) {
 
 function label(kind: string) {
   return LABELS[kind] ?? kind
+}
+
+/** The band's label, its emoji first. Each emoji is two UTF-16 units and two columns, so `.length` still measures it. */
+function heading(kind: string) {
+  return ICONS[kind] ? `${ICONS[kind]} ${label(kind)}` : label(kind)
 }
 
 export function span(ms: number) {
