@@ -2,7 +2,7 @@
   "name": "limit-watch",
   "displayName": "Limit Watch",
   "version": "0.9.0",
-  "description": "Draws the 5-hour and weekly usage limits above the prompt, coloured by use, with reset countdowns and toasts at 80% and 95%.",
+  "description": "Draws the 5-hour and weekly usage limits and the session's cost above the prompt, limits coloured by use, with reset countdowns and toasts at 80% and 95%.",
   "author": {
     "name": "Tartiner Labs",
     "url": "https://tartinerlabs.com"

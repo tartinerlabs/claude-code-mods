@@ -24,7 +24,7 @@
 | ⏸ | [auto-resume](#-auto-resume) | Status line, toast | Picks a turn back up once a usage limit resets |
 | 🏷 | [auto-session-name](#-auto-session-name) | Session title | Names each session from its first prompt |
 | ⏱ | [cache-clock](#-cache-clock) | Band above the prompt | Counts down to the prompt cache going cold |
-| 📊 | [limit-watch](#-limit-watch) | Band above the prompt, toasts | Shows the 5-hour and weekly usage limits |
+| 📊 | [limit-watch](#-limit-watch) | Band above the prompt, toasts | Shows the 5-hour and weekly usage limits and the session's cost |
 | 🛫 | [pr-pilot](#-pr-pilot) | Band above the prompt, toasts | Shows the branch's PR checks and merges it with `/merge` |
 | 🗜 | [smart-compact](#-smart-compact) | Toast | Compacts between turns, sooner at checkpoints or when the cache is cooling |
 | ⛅ | [token-weather](#-token-weather) | Band above the prompt | Forecasts how full the context window is |
@@ -58,18 +58,18 @@ Names each session from its first prompt using Haiku so it is easy to find with 
 Draws a countdown above the prompt to when the prompt cache goes cold, with the last request's hit rate. Once cold, it shows how much the next turn re-writes. Set the `ttl` option to `1h` when extended caching is on.
 
 ```text
-cache ● 3:42 left · 96% hit                                 ← green, yellow under a minute
-cache ○ cold · next turn re-writes 84.3k                    ← red
+🔥 cache 3:42 left · 96% hit                                ← green, yellow under a minute
+🧊 cache cold · next turn re-writes 84.3k                   ← red
 ```
 
 <sub>📁 [`plugins/cache-clock`](plugins/cache-clock)</sub>
 
 ### 📊 limit-watch
 
-Draws the 5-hour and weekly usage limits above the prompt with live reset countdowns, green under 60%, yellow to 80% and red past it. Toasts once a window passes 80% and again at 95%. Any other window the API reports, such as a gateway spend limit, shows under its own name.
+Draws the 5-hour and weekly usage limits above the prompt with live reset countdowns, green under 60%, yellow to 80% and red past it. Toasts once a window passes 80% and again at 95%. Any other window the API reports, such as a gateway spend limit, shows under its own name. The session's cost so far follows the limits.
 
 ```text
-5h 42% · 2h17m  7d 81% · 3d4h                               ← band
+🕔 5h 42% · 2h17m  📅 7d 81% · 3d4h  💰 $2.36              ← band
 7d limit at 81%, resets in 3d4h                             ← toast
 ```
 
@@ -80,7 +80,7 @@ Draws the 5-hour and weekly usage limits above the prompt with live reset countd
 Draws the current branch's open pull request above the prompt with its checks and whether it can merge, refreshed each minute and after every turn. Toasts when a run of checks finishes. `/merge` merges it with `gh` and deletes the branch, but only once every check has passed and nothing blocks it. On a [gh-stack](https://github.com/github/gh-stack) layer the band shows its place in the stack, and `/merge` merges the whole stack with `gh stack merge` once every unmerged layer has passed its checks and has no unpushed commits, then switches to the trunk and deletes every layer's branch, local and remote, once all of them have merged. Set the `method` option to `merge` (default), `squash` or `rebase`. Needs the [GitHub CLI](https://cli.github.com), signed in.
 
 ```text
-PR #42  ◐ 3/5 checks  waiting                                ← band
+🔀 PR #42  ⏳ 3/5 checks  waiting                            ← band
 PR #42  ✗ 1 failing: SonarCloud  blocked                     ← red
 PR #42  ✓ 5/5 checks  ready · /merge                         ← green
 PR #42  stack 2/3  ✓ 5/5 checks  ready · /merge              ← a gh-stack layer
@@ -112,10 +112,10 @@ Compacted at 74%: context high, 5h limit at 86%              ← toast
 Draws a forecast of the context window above the prompt, with tokens used, a sparkline of the last 12 turns and the change since the last turn.
 
 ```text
-☁  Cloudy  38% of context  76.4k / 200k   last turns ▁▂▂▃▄▄▅▆  ▲ +4.1k last turn
+⛅ Cloudy  38% of context  76.4k / 200k   last turns ▁▂▂▃▄▄▅▆  ▲ +4.1k last turn
 ```
 
-| ☀ Clear | ☁ Cloudy | ☂ Showers | ☇ Storm | ↯ Compact soon |
+| 🌞 Clear | ⛅ Cloudy | ☔ Showers | ⚡ Storm | 🚨 Compact soon |
 | :-: | :-: | :-: | :-: | :-: |
 | under 25% | under 50% | under 75% | under 90% | 90% and up |
 

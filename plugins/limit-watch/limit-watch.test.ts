@@ -85,6 +85,23 @@ describe('limit-watch', () => {
     await ui.unmount()
   })
 
+  it('should show the session cost and follow it, with or without limits', async ($, on) => {
+    mock.clock(on, { now: NOW })
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('session.usage', () => ({ value: { startedAt: NOW, context: { window: 200_000 }, rateLimits: [], cost: { usd: 2.356 } } }))
+    on('session.measure', ($, e) => ({ changed: e.changed }))
+    on('ui.render', ($, e) => $.ui.resolve(e).Box({}))
+
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+    const ui = await $.ui.mount({ plugin: 'limit-watch', surface: 'terminal', component: 'AbovePrompt', props: BAND })
+    expect(await ui.find({ type: 'Text', text: '💰 $2.36', props: { color: 'yellow' } })).toBeDefined()
+
+    await $.session.measure({ context: { window: 200_000 }, rateLimits: [], cost: { usd: 3.1 }, changed: ['cost'] })
+    expect(await ui.find({ type: 'Text', text: '💰 $3.10' })).toBeDefined()
+
+    await ui.unmount()
+  })
+
   it('should drop the reset countdowns on a narrow band', async ($, on) => {
     mock.clock(on, { now: NOW })
     const limits = [

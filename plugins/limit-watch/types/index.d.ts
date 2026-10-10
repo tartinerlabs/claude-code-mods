@@ -6,6 +6,6 @@ export type Warned = Record<string, { resetsAt: string; level: number }>
 
 declare module 'claude-code' {
   interface PluginState {
-    'limit-watch': { limits: Limit[]; warned: Warned }
+    'limit-watch': { limits: Limit[]; warned: Warned; cost: number | null }
   }
 }
