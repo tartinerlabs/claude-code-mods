@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.9.0...v0.10.0) (2026-10-10)
+
+
+### Features
+
+* **limit-watch:** show session cost in band ([3271d93](https://github.com/tartinerlabs/claude-code-mods/commit/3271d937408785f44ae15e91a27c19eef2c5a7e2))
+
 ## [0.9.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.8.0...v0.9.0) (2026-10-10)
 
 
