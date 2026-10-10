@@ -54,6 +54,49 @@ describe('token-weather', () => {
     })
   }
 
+  it('should follow the context window mid-turn after each model request', async ($, on) => {
+    let tokens = 36_100
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('session.usage', () => ({
+      value: { startedAt: 0, rateLimits: [], context: { tokens, window: 200_000, percent: Math.round(tokens / 2_000) } },
+    }))
+    on('turn.step', async function* ($, e) {
+      return { turnId: e.turnId, index: e.index, answer: '', toolUses: [], stopReason: null, usage: null }
+    })
+    on('turn.complete', () => ({ text: '' }))
+    on('ui.render', ($, e) => $.ui.resolve(e).Box({}))
+
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+    const ui = await $.ui.mount({
+      plugin: 'token-weather',
+      surface: 'terminal',
+      component: 'AbovePrompt',
+      props: { hasSurvey: false, isWorking: true, maxRows: 10, bodyColumns: 120, scroll: { offset: 0, bodyRows: 10 }, view: {} },
+    })
+
+    const step = async (index: number, agentId?: string) => {
+      for await (const _ of $.turn.step({ turnId: 't1', index, model: 'm', messageCount: 1, agentId })) {
+        // Drain the stream so the step completes.
+      }
+    }
+
+    tokens = 134_400
+    await step(0)
+    expect(await ui.find({ type: 'Text', text: /67% of context/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /▲ \+98\.3k this turn/ })).toBeDefined()
+
+    // A subagent's request takes no reading.
+    tokens = 190_000
+    await step(1, 'sub')
+    expect(await ui.find({ type: 'Text', text: /67% of context/ })).toBeDefined()
+
+    await $.turn.complete({ reason: 'answer', answer: 'ok', durationMs: 1, isAborted: false, turnId: 't1' })
+    expect(await ui.find({ type: 'Text', text: /95% of context/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /last turn$/ })).toBeDefined()
+
+    await ui.unmount()
+  })
+
   it('should drop the history, then the token counts, as the band narrows', async ($, on) => {
     let tokens = 36_100
     on('session.start', ($, e) => ({ cwd: e.cwd }))

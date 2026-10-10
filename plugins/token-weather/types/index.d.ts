@@ -2,6 +2,6 @@ export type TokenWeatherReading = { tokens: number; window: number; percent: num
 
 declare module 'claude-code' {
   interface PluginState {
-    'token-weather': { readings: TokenWeatherReading[] }
+    'token-weather': { readings: TokenWeatherReading[]; live: TokenWeatherReading | null }
   }
 }
