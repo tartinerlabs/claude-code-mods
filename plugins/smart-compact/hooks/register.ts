@@ -63,7 +63,6 @@ export type Limits = { threshold: number; floor: number }
 export type Decision = { compact: boolean; threshold: number; reasons: string[] }
 
 export const register: Register = (on, options) => {
-  const ttlMs = options.ttl === '1h' ? TTL_MS['1h'] : TTL_MS['5m']
   const limits: Limits = {
     threshold: Number(options.threshold ?? 70),
     floor: Number(options.floor ?? 40),
@@ -97,6 +96,7 @@ export const register: Register = (on, options) => {
 
       const reached = await read($, checkpoint)
       const fiveHour = rateLimits.find(limit => limit.kind === 'five_hour')
+      const ttlMs = TTL_MS[cacheTtl(options.ttl, rateLimits)]
       const decision = decide(
         { percent: context.percent, idleMs, ttlMs, fiveHourPercent: fiveHour?.percentUsed, checkpoint: reached },
         limits,
@@ -227,6 +227,16 @@ export function areAllDone(todos: readonly { status: string }[]) {
   return todos.length > 0 && todos.every(todo => todo.status === 'completed')
 }
 
+// A subscription reports its plan windows and caches the main conversation for an hour;
+// an API key or cloud provider reports none and caches for five minutes.
+export function cacheTtl(option: unknown, rateLimits: readonly { kind: string }[]): keyof typeof TTL_MS {
+  if (option === '5m' || option === '1h') {
+    return option
+  }
+
+  return rateLimits.some(limit => limit.kind === 'five_hour' || limit.kind === 'seven_day') ? '1h' : '5m'
+}
+
 export function decide(factors: Factors, limits: Limits): Decision {
   const { percent, idleMs, ttlMs, fiveHourPercent, checkpoint: reached } = factors
   const reasons: string[] = []
@@ -238,11 +248,8 @@ export function decide(factors: Factors, limits: Limits): Decision {
     reasons.push(CHECKPOINTS[reached].reason)
   }
 
-  if (idleMs >= ttlMs) {
-    // Cold already: the next turn re-writes the whole prefix, so make it a short one.
-    threshold -= 10
-    reasons.push('cache cold')
-  } else if (ttlMs - idleMs <= COOLING_MS) {
+  // Once cold, the summary would re-read everything uncached, so only cooling counts.
+  if (idleMs < ttlMs && ttlMs - idleMs <= COOLING_MS) {
     // About to go cold: the summary reads the prefix from cache while it still can.
     threshold -= 20
     reasons.push('cache cooling')
