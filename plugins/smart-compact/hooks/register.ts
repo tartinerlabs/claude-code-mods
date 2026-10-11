@@ -9,6 +9,7 @@ const TICK_MS = 15_000
 const COOLING_MS = 60_000
 // Leave the person a moment to type a follow-up before compacting under them.
 const SETTLE_MS = 10_000
+const CONTINUE_PROMPT = 'Continue with the remaining tasks.'
 
 const CHECKPOINTS: Record<Checkpoint, { reason: string; instructions: string }> = {
   commit: {
@@ -46,6 +47,8 @@ const turn = atom({ plugin: 'smart-compact', key: 'turn' } as const, { isBusy: f
 const checkpoint = atom({ plugin: 'smart-compact', key: 'checkpoint' } as const, null as Checkpoint | null)
 // Task ids made with TaskCreate and not yet completed or deleted.
 const openTasks = atom({ plugin: 'smart-compact', key: 'openTasks' } as const, [] as readonly string[])
+// Items not yet completed on the latest TodoWrite list.
+const openTodos = atom({ plugin: 'smart-compact', key: 'openTodos' } as const, 0)
 
 export type Factors = {
   percent: number
@@ -66,6 +69,7 @@ export const register: Register = (on, options) => {
     floor: Number(options.floor ?? 40),
   }
   const isWatchingCheckpoints = options.checkpoints !== 'off'
+  const isContinuing = options.continue === 'tasks'
   let isCompacting = false
 
   on('session.start', async ($, e, next) => {
@@ -109,7 +113,14 @@ export const register: Register = (on, options) => {
         const compacted = await $.session.compact(instructions ? { instructions } : undefined)
 
         if (!('skip' in compacted && compacted.skip !== undefined)) {
-          $.ui.toast(`Compacted at ${context.percent}%: ${decision.reasons.join(', ')}`)
+          const isUnfinished = (await read($, openTasks)).length > 0 || (await read($, openTodos)) > 0
+
+          if (isContinuing && state.canContinue && isUnfinished) {
+            $.ui.toast(`Compacted at ${context.percent}%: ${decision.reasons.join(', ')}; continuing`)
+            await $.prompt.submit({ text: CONTINUE_PROMPT })
+          } else {
+            $.ui.toast(`Compacted at ${context.percent}%: ${decision.reasons.join(', ')}`)
+          }
         }
       } catch {
         // A turn started between the check and the call; try again once it ends.
@@ -138,13 +149,15 @@ export const register: Register = (on, options) => {
     // Main loop only: a subagent's turn ending leaves the session busy.
     if (!e.agentId) {
       const endedAt = await $.clock.now()
-      await update($, turn, () => ({ isBusy: false, endedAt }))
+      // Stopped by the person, or waiting on their answer: not ours to carry on.
+      const canContinue = !e.isAborted && !e.answer.trimEnd().endsWith('?')
+      await update($, turn, () => ({ isBusy: false, endedAt, canContinue }))
     }
 
     return result
   })
 
-  if (!isWatchingCheckpoints) {
+  if (!isWatchingCheckpoints && !isContinuing) {
     return
   }
 
@@ -165,6 +178,7 @@ export const register: Register = (on, options) => {
     } else if (e.tool === 'EnterWorktree' || e.tool === 'ExitWorktree') {
       reached = 'switch'
     } else if (e.tool === 'TodoWrite') {
+      await update($, openTodos, () => e.todos.filter(todo => todo.status !== 'completed').length)
       reached = areAllDone(e.todos) ? 'todos' : null
     } else if (e.tool === 'TaskCreate') {
       const created = ran.result as { task?: { id?: string } }
@@ -180,7 +194,7 @@ export const register: Register = (on, options) => {
       reached = e.status === 'completed' && before.length > 0 && after.length === 0 ? 'todos' : null
     }
 
-    if (reached) {
+    if (reached && isWatchingCheckpoints) {
       await update($, checkpoint, () => reached)
     }
 
