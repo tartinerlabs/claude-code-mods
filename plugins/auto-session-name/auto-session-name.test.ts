@@ -63,6 +63,45 @@ describe('auto-session-name', () => {
     expect(asked).toBe(false)
   })
 
+  it('should re-title from recent prompts when the first prompt was short', async ($, on) => {
+    on('classic.UserPromptSubmit', () => ({}))
+    const asked: string[] = []
+    on('model.complete', (_, e) => {
+      asked.push(e.prompt)
+      return { value: { isAnswered: true, text: asked.length === 1 ? 'Look at error' : 'Fix upload retry backoff', usage } }
+    })
+    const titles: (string | undefined)[] = []
+    for (const prompt of ['look at this error', 'it is in the upload worker', 'the retry never backs off', 'make the backoff exponential', 'and add a test']) {
+      const result = await $.classic.UserPromptSubmit({ prompt, source: 'user', session_title: titles.findLast(Boolean) })
+      titles.push(result.sessionTitle)
+    }
+    expect(titles).toEqual(['Look at error', undefined, undefined, 'Fix upload retry backoff', undefined])
+    expect(asked).toHaveLength(2)
+    expect(asked[1]).toContain('make the backoff exponential')
+  })
+
+  it('should not re-title when the first prompt was detailed', async ($, on) => {
+    on('classic.UserPromptSubmit', () => ({}))
+    let asks = 0
+    on('model.complete', () => { asks++; return { value: { isAnswered: true, text: 'Fix login redirect bug', usage } } })
+    for (let i = 0; i < 5; i++) {
+      await $.classic.UserPromptSubmit({ prompt: 'the login page redirects in a loop after sign-in', source: 'user' })
+    }
+    expect(asks).toBe(1)
+  })
+
+  it('should stop re-titling once the session is renamed', async ($, on) => {
+    on('classic.UserPromptSubmit', () => ({}))
+    let asks = 0
+    on('model.complete', () => { asks++; return { value: { isAnswered: true, text: 'Look at error', usage } } })
+    await $.classic.UserPromptSubmit({ prompt: 'look at this error', source: 'user' })
+    for (let i = 0; i < 4; i++) {
+      const result = await $.classic.UserPromptSubmit({ prompt: 'keep going', source: 'user', session_title: 'My session' })
+      expect(result.sessionTitle).toBeUndefined()
+    }
+    expect(asks).toBe(1)
+  })
+
   it('should pass the prompt through unnamed when the model fails', async ($, on) => {
     on('classic.UserPromptSubmit', () => ({}))
     on('model.complete', () => ({ value: { isAnswered: false, reason: 'empty-reply', usage } }))
