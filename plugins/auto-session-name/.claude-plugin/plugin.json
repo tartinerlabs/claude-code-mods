@@ -1,7 +1,7 @@
 {
   "name": "auto-session-name",
   "displayName": "Auto Session Name",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "Names each session from its first prompt, and again a few prompts in when that one was short, so it is easy to find in /resume.",
   "author": {
     "name": "Tartiner Labs",

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.11.0...v0.12.0) (2026-10-11)
+
+
+### Features
+
+* **auto-session-name:** re-title short first prompts ([7d4645f](https://github.com/tartinerlabs/claude-code-mods/commit/7d4645fbaf0fda542f0c9d695fdaa92abf77ee92))
+
 ## [0.11.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.10.0...v0.11.0) (2026-10-10)
 
 
