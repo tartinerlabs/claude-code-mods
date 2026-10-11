@@ -99,10 +99,13 @@ Compacts the conversation between turns, never during one, weighing several fact
 
 Nothing takes it under the `floor` option (30, 40 default, or 50%), and it tries at most once per idle stretch. Set `ttl` to `1h` when extended prompt caching is on.
 
+Set `continue` to `tasks` to carry on after compacting while todos or tasks are still open. It sends `Continue with the remaining tasks.`, unless the turn was interrupted or ended on a question.
+
 ```text
 Compacted at 52%: committed                                  ← toast
 Compacted at 55%: cache cooling                              ← toast
 Compacted at 74%: context high, 5h limit at 86%              ← toast
+Compacted at 75%: context high; continuing                   ← toast
 ```
 
 <sub>📁 [`plugins/smart-compact`](plugins/smart-compact)</sub>

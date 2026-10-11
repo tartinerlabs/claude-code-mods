@@ -136,4 +136,46 @@ describe('smart-compact', () => {
     expect(instructions[0]).toMatch(/just committed/)
     expect(toasts).toEqual(['Compacted at 52%: committed'])
   })
+
+  it('should continue after compacting only while todos are open and the turn ended on its own', { options: { continue: 'tasks' } }, async ($, on) => {
+    const clock = mock.clock(on, { now: 1_000_000 })
+    let percent: number | undefined = 75
+    const sent: string[] = []
+    const toasts: string[] = []
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200_000, percent }, rateLimits: [] } }))
+    on('session.compact', () => {
+      percent = undefined
+
+      return { messages: [{ role: 'user' as const, text: 'summary', toolUses: [] }] }
+    })
+    on('tool.call', { tool: 'TodoWrite' }, () => ({ result: {}, text: 'ok' }))
+    on('turn.start', ($, e) => ({ turnId: e.turnId }))
+    on('turn.complete', () => ({ text: 'ok' }))
+    on('prompt.submit', ($, e) => (sent.push(e.text), e))
+    on('ui.toast', ($, e) => (toasts.push(e.text), { value: undefined }))
+    const run = async (turnId: string, answer: string, isAborted = false) => {
+      percent = 75
+      await $.turn.start({ text: 'go', turnId })
+      await $.tool.call({
+        tool: 'TodoWrite',
+        todos: [
+          { content: 'a', status: 'completed', activeForm: 'Doing a' },
+          { content: 'b', status: 'pending', activeForm: 'Doing b' },
+        ],
+      })
+      await $.turn.complete({ answer, durationMs: 1, isAborted, turnId, reason: 'end_turn' })
+      await clock.advance(30_000)
+    }
+
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+
+    await run('t1', 'Which database should I use?')
+    await run('t2', 'Stopped.', true)
+    expect(sent).toEqual([])
+
+    await run('t3', 'Done with a, moving on.')
+    expect(sent).toEqual(['Continue with the remaining tasks.'])
+    expect(toasts.at(-1)).toBe('Compacted at 75%: context high; continuing')
+  })
 })

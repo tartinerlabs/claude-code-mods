@@ -50,6 +50,16 @@
         "off"
       ],
       "default": "on"
+    },
+    "continue": {
+      "type": "string",
+      "title": "Continue after",
+      "description": "Send a prompt to carry on after compacting while todos or tasks are still open, unless the turn was interrupted or ended on a question.",
+      "options": [
+        "off",
+        "tasks"
+      ],
+      "default": "off"
     }
   }
 }
