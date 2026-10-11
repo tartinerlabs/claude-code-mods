@@ -94,10 +94,10 @@ PR #42 checks passed, ready to /merge                        ← toast
 Compacts the conversation between turns, never during one, weighing several factors against the context's fill. Past the `threshold` option (60, 70 default, or 80%) it compacts about ten seconds after a turn ends. It compacts sooner when compacting is cheapest or most worth it:
 
 - **Checkpoints**, 20 points lower: a turn that committed, opened or merged a PR (`gh pr`, `gh stack`), had a plan approved, finished its todo list, or switched branch or worktree. The summary is told what to keep for each, such as the approved plan verbatim. A checkpoint counts only until the next turn starts. Set `checkpoints` to `off` to ignore them.
-- **Cache cooling**, 20 points lower in the last minute before the prompt cache goes cold, so the summary still reads the conversation from cache; 10 lower once it is cold, so the next turn re-writes a short prefix instead of a long one.
+- **Cache cooling**, 20 points lower in the last minute before the prompt cache goes cold, so the summary still reads the conversation from cache. Once the cache is cold it does not compact sooner, since the summary would re-read the whole conversation uncached.
 - **5-hour limit**, 10 points lower while it is at 80% or more.
 
-Nothing takes it under the `floor` option (30, 40 default, or 50%), and it tries at most once per idle stretch. Set `ttl` to `1h` when extended prompt caching is on.
+Nothing takes it under the `floor` option (30, 40 default, or 50%), and it tries at most once per idle stretch. The `ttl` option defaults to `auto`: 1h on a subscription, 5m on an API key or cloud provider. Set it to `5m` while a subscription draws on usage credits, or to `1h` when you set a one-hour cache yourself.
 
 Set `continue` to `tasks` to carry on after compacting while todos or tasks are still open. It sends `Continue with the remaining tasks.`, unless the turn was interrupted or ended on a question.
 

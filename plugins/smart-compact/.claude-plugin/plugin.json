@@ -34,12 +34,13 @@
     "ttl": {
       "type": "string",
       "title": "Prompt cache TTL",
-      "description": "How long the API keeps the cache after its last use: 5m by default, 1h when extended caching is on.",
+      "description": "How long the API keeps the cache after its last use. Auto takes 1h on a subscription and 5m on an API key or cloud provider; pick 5m while a subscription draws on usage credits.",
       "options": [
+        "auto",
         "5m",
         "1h"
       ],
-      "default": "5m"
+      "default": "auto"
     },
     "checkpoints": {
       "type": "string",

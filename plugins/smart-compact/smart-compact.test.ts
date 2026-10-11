@@ -1,6 +1,6 @@
 import { describe, expect, mock, test as it } from 'claude-code/testing'
 
-import { areAllDone, bashCheckpoint, decide } from './hooks/register'
+import { areAllDone, bashCheckpoint, cacheTtl, decide } from './hooks/register'
 
 const LIMITS = { threshold: 70, floor: 40 }
 const TTL = 5 * 60_000
@@ -21,7 +21,11 @@ describe('smart-compact', () => {
       threshold: 50,
       reasons: ['cache cooling'],
     })
-    expect(decide({ percent: 52, idleMs: TTL + 1, ttlMs: TTL }, LIMITS).threshold).toBe(60)
+    expect(decide({ percent: 52, idleMs: TTL + 1, ttlMs: TTL }, LIMITS)).toEqual({
+      compact: false,
+      threshold: 70,
+      reasons: [],
+    })
     expect(decide({ percent: 45, idleMs: TTL - 30_000, ttlMs: TTL, fiveHourPercent: 90 }, LIMITS)).toEqual({
       compact: true,
       threshold: 40,
@@ -64,6 +68,42 @@ describe('smart-compact', () => {
     expect(toasts).toEqual(['Compacted at 55%: cache cooling'])
 
     await clock.advance(10 * 60_000)
+    expect(compactions).toBe(1)
+  })
+
+  it('should take the cache TTL from the option, else from whether plan windows are reported', () => {
+    expect(cacheTtl('5m', [{ kind: 'five_hour' }])).toBe('5m')
+    expect(cacheTtl('1h', [])).toBe('1h')
+    expect(cacheTtl('auto', [{ kind: 'five_hour' }])).toBe('1h')
+    expect(cacheTtl('auto', [{ kind: 'spend_limit' }])).toBe('5m')
+    expect(cacheTtl(undefined, [])).toBe('5m')
+  })
+
+  it('should wait out the hour-long cache on a subscription before cooling', async ($, on) => {
+    const clock = mock.clock(on, { now: 1_000_000 })
+    let compactions = 0
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('session.usage', () => ({
+      value: { startedAt: 0, context: { window: 200_000, percent: 55 }, rateLimits: [{ kind: 'five_hour', percentUsed: 20 }] },
+    }))
+    on('session.compact', () => {
+      compactions += 1
+
+      return { messages: [{ role: 'user' as const, text: 'summary', toolUses: [] }] }
+    })
+    on('turn.start', ($, e) => ({ turnId: e.turnId }))
+    on('turn.complete', () => ({ text: 'ok' }))
+    on('ui.toast', () => ({ value: undefined }))
+
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+    await $.turn.start({ text: 'hi', turnId: 't1' })
+    await $.turn.complete({ answer: 'ok', durationMs: 1, isAborted: false, turnId: 't1', reason: 'end_turn' })
+
+    // Past where a five-minute cache would cool: still warm for most of an hour.
+    await clock.advance(10 * 60_000)
+    expect(compactions).toBe(0)
+
+    await clock.advance(50 * 60_000)
     expect(compactions).toBe(1)
   })
 
