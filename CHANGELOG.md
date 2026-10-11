@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.1](https://github.com/tartinerlabs/claude-code-mods/compare/v0.13.0...v0.13.1) (2026-10-11)
+
+
+### Bug Fixes
+
+* **smart-compact:** detect the cache TTL ([cca5744](https://github.com/tartinerlabs/claude-code-mods/commit/cca5744164a79bf0bf411b925104e65d8957daf4))
+
 ## [0.13.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.12.0...v0.13.0) (2026-10-11)
 
 
