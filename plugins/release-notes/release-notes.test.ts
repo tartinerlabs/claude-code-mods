@@ -25,6 +25,8 @@ type Repo = {
   store?: Record<string, unknown>
   /** False outside a git repository. */
   isRepo?: boolean
+  /** Path → where it resolves, for symbolic links. */
+  links?: Record<string, string>
 }
 
 /** Stands in for git, the file system, the store and the model over one Xcode repository at /work. */
@@ -53,6 +55,11 @@ function fake(on: Parameters<Parameters<typeof it>[1]>[1], repo: Repo) {
     if (e.path === '/work/CHANGELOG.md' && repo.changelog !== undefined) return { value: written[e.path] ?? repo.changelog }
     return { deny: 'ENOENT' }
   })
+  on('fs.stat', ($, e) => {
+    const realPath = repo.links?.[e.path] ?? e.path
+    const exists = e.path === '/work' || e.path.endsWith('/en-US') || (e.path === '/work/CHANGELOG.md' && repo.changelog !== undefined) || e.path in (repo.links ?? {})
+    return exists ? { value: { kind: 'file', size: 0, mtimeMs: 0, isLink: e.path in (repo.links ?? {}), realPath } } : { deny: 'ENOENT' }
+  })
   on('fs.write', ($, e) => ((written[e.path] = e.text), { value: undefined }))
   on('process.run', ($, e) => {
     const args = e.argv.slice(3).join(' ')
@@ -79,6 +86,7 @@ describe('helpers', () => {
   it('should read the highest version and build across targets', () => {
     expect(parseVersions(pbxproj('2.10.0'))).toEqual({ version: '2.10.0', build: '41' })
     expect(parseVersions('"MARKETING_VERSION": "1.2.0",\n"CURRENT_PROJECT_VERSION": "7",\n"MARKETING_VERSION": "1.0"')).toEqual({ version: '1.2.0', build: '7' })
+    expect(parseVersions('MARKETING_VERSION = 1.0(;').version).toBeNull()
     expect(parseVersions('nothing here')).toEqual({ version: null, build: null })
     expect(compareVersions('2.10', '2.9')).toBeGreaterThan(0)
   })
@@ -132,7 +140,15 @@ describe('release-notes', () => {
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
     const result = await $.command.run({ command: 'release-notes', args: '' })
     expect(result.text).toBe('Release notes for 2.4.0 written to CHANGELOG.md:\n\n- Dark mode\n- Fixed a crash on launch')
-    expect(ran).toContain('log --no-merges -n 200 --format=%s b1..HEAD')
+    expect(ran).toContain('log --no-merges -n 200 --format=%s --end-of-options b1..HEAD')
+  })
+
+  it('should not write through a link that leads outside the repository', async ($, on) => {
+    const { written } = fake(on, { version: '2.4.0', tags: ['v2.3.0'], changelog: '', links: { '/work/CHANGELOG.md': '/Users/me/.zshrc' } })
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+    const result = await $.command.run({ command: 'release-notes', args: '' })
+    expect(result.text).toBe('Could not draft the release notes: CHANGELOG.md leads outside the repository, so it was left alone.')
+    expect(written).toEqual({})
   })
 
   for (const surface of ['terminal', 'desktop'] as const) {
