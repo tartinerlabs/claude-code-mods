@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.14.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.13.1...v0.14.0) (2026-10-16)
+
+
+### Features
+
+* **release-notes:** add release notes mod ([0302933](https://github.com/tartinerlabs/claude-code-mods/commit/0302933effd00715697add54fc568cbb175b8fb4))
+
+
+### Bug Fixes
+
+* **release-notes:** escape the version in its pattern ([6c18213](https://github.com/tartinerlabs/claude-code-mods/commit/6c18213beffd13118cce54cd9e25e6c4a8d0e0d2))
+* **release-notes:** refuse writes outside the repo ([cc36891](https://github.com/tartinerlabs/claude-code-mods/commit/cc36891509c991713010536b10c86dfcfc97c4a8))
+
 ## [0.13.1](https://github.com/tartinerlabs/claude-code-mods/compare/v0.13.0...v0.13.1) (2026-10-11)
 
 
