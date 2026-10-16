@@ -56,8 +56,7 @@ export function pickLocale(names: string[]) {
   return locales.find(n => n === 'default') ?? locales.find(n => n === 'en-US') ?? locales[0] ?? null
 }
 
-// `version` is digits and dots alone (parseVersions), so escaping the dots is enough.
-const heading = (version: string) => new RegExp(`^## \\[?${version.replace(/\./g, '\\.')}\\]?(?=[\\s(]|$)`, 'm')
+const heading = (version: string) => new RegExp(`^## \\[?${version.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\]?(?=[\\s(]|$)`, 'm')
 
 /** True when a changelog already holds a section for `version`. */
 export const hasSection = (changelog: string, version: string) => heading(version).test(changelog)
