@@ -40,6 +40,11 @@
       "name": "smart-compact",
       "source": "./plugins/smart-compact",
       "description": "Compacts between turns when the context is full enough, sooner after a commit, PR, approved plan or finished todo list, or when the prompt cache is about to go cold or the 5-hour limit runs low."
+    },
+    {
+      "name": "release-notes",
+      "source": "./plugins/release-notes",
+      "description": "Drafts App Store release notes for Xcode projects when the version is bumped, into fastlane metadata or CHANGELOG.md."
     }
   ]
 }
