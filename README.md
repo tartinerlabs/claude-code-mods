@@ -26,6 +26,7 @@
 | ⏱ | [cache-clock](#-cache-clock) | Band above the prompt | Counts down to the prompt cache going cold |
 | 📊 | [limit-watch](#-limit-watch) | Band above the prompt, toasts | Shows the 5-hour and weekly usage limits and the session's cost |
 | 🛫 | [pr-pilot](#-pr-pilot) | Band above the prompt, toasts | Shows the branch's PR checks and merges it with `/merge` |
+| 📝 | [release-notes](#-release-notes) | Band above the prompt, toast | Drafts App Store release notes for Xcode projects when the version is bumped |
 | 🗜 | [smart-compact](#-smart-compact) | Toast | Compacts between turns, sooner at checkpoints or when the cache is cooling |
 | ⛅ | [token-weather](#-token-weather) | Band above the prompt | Forecasts how full the context window is |
 
@@ -88,6 +89,17 @@ PR #42 checks passed, ready to /merge                        ← toast
 ```
 
 <sub>📁 [`plugins/pr-pilot`](plugins/pr-pilot)</sub>
+
+### 📝 release-notes
+
+In an Xcode project, draws the app's `MARKETING_VERSION` and build above the prompt with the commits since the last release. When a turn, or anything between sessions, changes the version, Haiku drafts App Store "What's New" notes from those commits and a toast says where they went. With fastlane they go to `fastlane/metadata/<locale>/release_notes.txt` for the `default` locale, else `en-US`, else the first. Without fastlane they become a `## <version>` section in `CHANGELOG.md`, and a section that is already there is left alone. The last release is the newest tag, or the commit that set the previous version when the repository has no tags. The first time it sees a repository it only records the version. `/release-notes` drafts the notes again, replacing what is there.
+
+```text
+📝 v2.4.0 (41)  12 commits since v2.3.0  notes drafted      ← band
+Release notes for 2.4.0 drafted in fastlane/metadata/en-US/release_notes.txt   ← toast
+```
+
+<sub>📁 [`plugins/release-notes`](plugins/release-notes)</sub>
 
 ### 🗜 smart-compact
 
