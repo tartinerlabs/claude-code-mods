@@ -27,6 +27,7 @@
 | 📊 | [limit-watch](#-limit-watch) | Band above the prompt, toasts | Shows the 5-hour and weekly usage limits and the session's cost |
 | 🛫 | [pr-pilot](#-pr-pilot) | Band above the prompt, toasts | Shows the branch's PR checks and merges it with `/merge` |
 | 📝 | [release-notes](#-release-notes) | Band above the prompt, toast | Drafts App Store release notes for Xcode projects when the version is bumped |
+| 📱 | [resource-watch](#-resource-watch) | Band above the prompt, toast | Shows which session is using each simulator, Claude Design project or the Xcode app, and messages the other session on a clash |
 | 🗜 | [smart-compact](#-smart-compact) | Toast | Compacts between turns, sooner at checkpoints or when the cache is cooling |
 | ⛅ | [token-weather](#-token-weather) | Band above the prompt | Forecasts how full the context window is |
 
@@ -100,6 +101,23 @@ Release notes for 2.4.0 drafted in fastlane/metadata/en-US/release_notes.txt   �
 ```
 
 <sub>📁 [`plugins/release-notes`](plugins/release-notes)</sub>
+
+### 📱 resource-watch
+
+Shows which Claude Code session is using each shared thing on the machine, so parallel agents do not fight over one. Booted Apple simulators and Claude Design projects are the baseline; the Xcode app sits on top.
+
+- **Simulators**: in an Xcode project, or once the session has used one, every booted simulator with the sessions holding it. A session takes a simulator when `simctl` or `xcodebuild` names it by UDID or name, or uses `booted` or an Xcode MCP run while only one is booted; commands that only look, as `simctl list` or `xcodebuild -showdestinations`, do not count.
+- **Claude Design**: a project, on any `claude-design` tool call on it.
+- **Xcode app**: on Xcode MCP calls that change its shared state: switching scheme, run destination or test plan, opening or closing a workspace, building, running, testing or stopping.
+
+A hold lasts the `hold` option's minutes (10 by default) after the last call, and ends with the session. Sessions share their holds as files in `~/.claude/resource-watch/`, labelled by their project's folder. A simulator call on one another session holds is refused the first time: the holding session is asked, and the agent is told to wait for its reply, then repeat the call to go ahead, and never to switch to or create another simulator without asking you. The holder tells the waiting sessions once it is done: after `StopProject` or `DeviceInteractionEndSession`, when its hold runs out, or when it ends. For a Claude Design project or the Xcode app nothing is refused: it toasts, messages the holding session so its agent can reply asking it to wait, and tells its own agent who holds it; a session that ends tells the sessions it shared with.
+
+```text
+📱 iPhone 18 Pro (iOS 27.2) · this session  🛠 the Xcode app · ⚠ also the web session   ← band
+iPhone 18 Pro is in use by the web session; asked it, waiting                            ← toast
+```
+
+<sub>📁 [`plugins/resource-watch`](plugins/resource-watch)</sub>
 
 ### 🗜 smart-compact
 
