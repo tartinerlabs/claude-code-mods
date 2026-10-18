@@ -49,7 +49,7 @@
     {
       "name": "resource-watch",
       "source": "./plugins/resource-watch",
-      "description": "Which session is using each booted Apple simulator, Claude Design project, the Xcode app, a local port or a file, above the prompt, messaging the other session when two want the same one."
+      "description": "Which session is using each booted Apple simulator, Claude Design project and the Xcode app, above the prompt, messaging the other session when two want the same one."
     }
   ]
 }

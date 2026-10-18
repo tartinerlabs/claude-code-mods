@@ -1,11 +1,8 @@
 /** A booted simulator, as `xcrun simctl list devices booted -j` reports it. */
 export type Sim = { udid: string; name: string; runtime: string }
 
-/**
- * The shared things a session can hold. Simulators and Claude Design projects are the baseline; files
- * (by absolute path), ports (served by the session's own processes) and the Xcode app sit on top.
- */
-export type Kind = 'simulators' | 'designs' | 'files' | 'ports' | 'xcode'
+/** The shared things a session can hold. Simulators and Claude Design projects are the baseline; the Xcode app sits on top. */
+export type Kind = 'simulators' | 'designs' | 'xcode'
 
 /** One held item, stamped with when it was last used. */
 export type Item = { name: string; at: number }

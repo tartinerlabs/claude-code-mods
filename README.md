@@ -27,7 +27,7 @@
 | 📊 | [limit-watch](#-limit-watch) | Band above the prompt, toasts | Shows the 5-hour and weekly usage limits and the session's cost |
 | 🛫 | [pr-pilot](#-pr-pilot) | Band above the prompt, toasts | Shows the branch's PR checks and merges it with `/merge` |
 | 📝 | [release-notes](#-release-notes) | Band above the prompt, toast | Drafts App Store release notes for Xcode projects when the version is bumped |
-| 📱 | [resource-watch](#-resource-watch) | Band above the prompt, toast | Shows which session is using each simulator, Claude Design project, port or file, and messages the other session on a clash |
+| 📱 | [resource-watch](#-resource-watch) | Band above the prompt, toast | Shows which session is using each simulator, Claude Design project or the Xcode app, and messages the other session on a clash |
 | 🗜 | [smart-compact](#-smart-compact) | Toast | Compacts between turns, sooner at checkpoints or when the cache is cooling |
 | ⛅ | [token-weather](#-token-weather) | Band above the prompt | Forecasts how full the context window is |
 
@@ -104,19 +104,17 @@ Release notes for 2.4.0 drafted in fastlane/metadata/en-US/release_notes.txt   �
 
 ### 📱 resource-watch
 
-Shows which Claude Code session is using each shared thing on the machine, so parallel agents do not fight over one. Booted Apple simulators and Claude Design projects are the baseline; the Xcode app, local ports and files sit on top.
+Shows which Claude Code session is using each shared thing on the machine, so parallel agents do not fight over one. Booted Apple simulators and Claude Design projects are the baseline; the Xcode app sits on top.
 
 - **Simulators**: in an Xcode project, or once the session has used one, every booted simulator with the sessions holding it. A session takes a simulator when `simctl` or `xcodebuild` names it by UDID or name, or uses `booted` or an Xcode MCP run while only one is booted.
 - **Claude Design**: a project, on any `claude-design` tool call on it.
 - **Xcode app**: on Xcode MCP calls that change its shared state: switching scheme, run destination or test plan, opening or closing a workspace, building, running, testing or stopping.
-- **Ports**: the TCP ports that processes under the session's own `claude` serve, found with `lsof` every 30 seconds and when a background command starts. A command that names a port another session serves, as `localhost:5173`, `--port 5173` or `PORT=5173`, counts as using it.
-- **Files**: a path the session changes with `Edit`, `Write` or `NotebookEdit`, shown only once another session in the same checkout has changed it too.
 
-A hold lasts the `hold` option's minutes (10 by default) after the last call, a port as long as it is served, and all of them end with the session. Sessions share their holds as files in `~/.claude/resource-watch/`, labelled by their project's folder. When a session picks up something another session holds, it toasts, messages the holding session so its agent can reply asking it to wait, and tells its own agent who holds it and, for a simulator, which booted ones are free. A session that ends tells the sessions it shared with that it has let go.
+A hold lasts the `hold` option's minutes (10 by default) after the last call, and ends with the session. Sessions share their holds as files in `~/.claude/resource-watch/`, labelled by their project's folder. When a session picks up something another session holds, it toasts, messages the holding session so its agent can reply asking it to wait, and tells its own agent who holds it and, for a simulator, which booted ones are free. A session that ends tells the sessions it shared with that it has let go.
 
 ```text
-📱 iPhone 18 Pro (iOS 27.2) · this session  🛠 the Xcode app · ⚠ also the web session  🔌 localhost:3000 · this session   ← band
-iPhone 18 Pro is also in use by the web session                                                                            ← toast
+📱 iPhone 18 Pro (iOS 27.2) · this session  🛠 the Xcode app · ⚠ also the web session   ← band
+iPhone 18 Pro is also in use by the web session                                          ← toast
 ```
 
 <sub>📁 [`plugins/resource-watch`](plugins/resource-watch)</sub>

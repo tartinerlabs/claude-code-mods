@@ -13,12 +13,11 @@ const XCODE_RUN = /^mcp__xcode__(RunProject|RunAllTests|RunSomeTests|DeviceInter
 const XCODE_STATE = /^mcp__xcode__(XcodeSwitch\w+|XcodeOpenWorkspace|XcodeCloseWorkspace|BuildProject|RunProject|StopProject|RunAllTests|RunSomeTests)$/
 const DESIGN = /^mcp__claude-design__/
 const SIM_COMMAND = /\b(simctl|xcodebuild|Simulator)\b/
-const PORT = /(?:--port[= ]|\bPORT=|\blocalhost:|\b127\.0\.0\.1:|\b0\.0\.0\.0:)(\d{2,5})\b/g
 
 const view = atom({ plugin: 'resource-watch', key: 'view' } as const, null as View | null)
 const mine = atom({ plugin: 'resource-watch', key: 'mine' } as const, null as Claim | null)
 
-/** Drops control characters, so a device, project or file name cannot carry terminal escapes. */
+/** Drops control characters, so a device or project name cannot carry terminal escapes. */
 export const clean = (text: string) => text.replace(/[\u0000-\u001f\u007f-\u009f]/g, '')
 
 type SimctlDevice = { udid: string; name: string; state: string }
@@ -50,92 +49,21 @@ export function simulatorsIn(tool: string, input: Record<string, unknown>, boote
   return booted.length === 1 && (/\bbooted\b/.test(text) || XCODE_RUN.test(tool)) ? [...booted] : []
 }
 
-/** The local ports a shell command names, as `--port 3000`, `PORT=3000` or `localhost:3000`. */
-export function portsIn(command: string): Found[] {
-  const ports = [...command.matchAll(PORT)].map(m => Number(m[1])).filter(p => p > 0 && p < 65536)
-
-  return [...new Set(ports)].map(p => ({ id: String(p), name: `localhost:${p}` }))
-}
-
-type Proc = { ppid: number; comm: string }
-
-/** The `ps -A -o pid=,ppid=,comm=` table, by pid. */
-export function parsePs(text: string): Map<number, Proc> {
-  const table = new Map<number, Proc>()
-  for (const line of text.split('\n')) {
-    const m = /^\s*(\d+)\s+(\d+)\s+(.+)$/.exec(line)
-    if (m) table.set(Number(m[1]), { ppid: Number(m[2]), comm: m[3]!.trim() })
-  }
-
-  return table
-}
-
-/** The nearest `claude` process at or above `start`, the one every Bash call of this session runs under; `start` when there is none. */
-export function findClaude(table: Map<number, Proc>, start: number) {
-  for (let pid = start, steps = 0; pid > 1 && steps < 64; steps += 1) {
-    const proc = table.get(pid)
-    if (!proc) break
-    if (/(^|\/)claude$/.test(proc.comm)) return pid
-    pid = proc.ppid
-  }
-
-  return start
-}
-
-const descends = (table: Map<number, Proc>, pid: number, root: number) => {
-  for (let at = pid, steps = 0; at > 1 && steps < 64; steps += 1) {
-    if (at === root) return true
-    at = table.get(at)?.ppid ?? 0
-  }
-
-  return false
-}
-
-/** The TCP ports listening in `lsof -nP -iTCP -sTCP:LISTEN -Fpn` output whose process runs under `root`. */
-export function servedPorts(lsof: string, table: Map<number, Proc>, root: number): Found[] {
-  const ports = new Set<number>()
-  let pid = 0
-  for (const line of lsof.split('\n')) {
-    if (line.startsWith('p')) pid = Number(line.slice(1))
-    else if (line.startsWith('n') && descends(table, pid, root)) {
-      const port = Number(line.slice(line.lastIndexOf(':') + 1))
-      if (port) ports.add(port)
-    }
-  }
-
-  return [...ports].sort((a, b) => a - b).map(p => ({ id: String(p), name: `localhost:${p}` }))
-}
-
 export type Found = { id: string; name: string }
-type Context = { tool: string; input: Record<string, unknown>; booted: readonly Sim[]; root: string }
+type Context = { tool: string; input: Record<string, unknown>; booted: readonly Sim[] }
 
-/**
- * What each kind of shared thing a tool call uses. Simulators and Claude Design projects are the
- * baseline; ports are found by what this session's processes serve, so they are not here.
- */
-export const DETECTORS: { kind: Exclude<Kind, 'ports'>; detect: (c: Context) => Found[] }[] = [
+/** What each kind of shared thing a tool call uses. Simulators and Claude Design projects are the baseline. */
+export const DETECTORS: { kind: Kind; detect: (c: Context) => Found[] }[] = [
   { kind: 'simulators', detect: c => simulatorsIn(c.tool, c.input, c.booted).map(s => ({ id: s.udid, name: s.name })) },
   { kind: 'designs', detect: c => (DESIGN.test(c.tool) && typeof c.input.project_id === 'string' ? [{ id: c.input.project_id, name: '' }] : []) },
   { kind: 'xcode', detect: c => (XCODE_STATE.test(c.tool) ? [{ id: 'Xcode', name: 'the Xcode app' }] : []) },
-  {
-    kind: 'files',
-    detect: c => {
-      const path = c.tool === 'NotebookEdit' ? c.input.notebook_path : ['Edit', 'Write'].includes(c.tool) ? c.input.file_path : undefined
-      if (typeof path !== 'string' || !path) return []
-      const id = path.startsWith('/') ? path : `${c.root}/${path}`
-
-      return [{ id, name: clean(id.startsWith(`${c.root}/`) ? id.slice(c.root.length + 1) : id) }]
-    },
-  },
 ]
 
-const ICON: Record<Kind, string> = { simulators: '📱', designs: '🎨', xcode: '🛠', ports: '🔌', files: '📄' }
+const ICON: Record<Kind, string> = { simulators: '📱', designs: '🎨', xcode: '🛠' }
 const ALSO: Record<Kind, string> = {
   simulators: 'which you are also using',
   designs: 'which you are also working on',
   xcode: 'which you are also driving',
-  ports: 'which you are serving',
-  files: 'which you have also been editing',
 }
 
 /** How an item reads in the band, a toast and a message. */
@@ -161,11 +89,7 @@ export function holders(me: Claim | null, others: readonly Claim[], kind: Kind, 
 
 export type Row = { icon: string; label: string; status: string; color: string }
 
-/**
- * The band's rows: every booted simulator in an Xcode project or once this session used one, then
- * the Claude Design projects, Xcode app and ports this session holds, then the files it shares with
- * another session.
- */
+/** The band's rows: every booted simulator in an Xcode project or once this session used one, then the Claude Design projects and Xcode app this session holds. */
 export function rows(v: View, me: Claim | null, now: number, holdMs: number): Row[] {
   const out: Row[] = []
   const held = (kind: Kind) => Object.entries(me?.items[kind] ?? {}).filter(([, item]) => now - item.at < holdMs)
@@ -175,11 +99,9 @@ export function rows(v: View, me: Claim | null, now: number, holdMs: number): Ro
       out.push({ icon: ICON.simulators, label: `${sim.name} (${sim.runtime})`, ...status(holders(me, v.others, 'simulators', sim.udid, now, holdMs)) })
     }
   }
-  for (const kind of ['designs', 'xcode', 'ports', 'files'] as const) {
+  for (const kind of ['designs', 'xcode'] as const) {
     for (const [id, item] of held(kind)) {
-      const who = holders(me, v.others, kind, id, now, holdMs)
-      if (kind === 'files' && who.length < 2) continue
-      out.push({ icon: ICON[kind], label: label(kind, id, item), ...status(who) })
+      out.push({ icon: ICON[kind], label: label(kind, id, item), ...status(holders(me, v.others, kind, id, now, holdMs)) })
     }
   }
 
@@ -205,10 +127,8 @@ export const selfNote = (name: string, holders: string[], free: string[]) =>
   `If a reply asks you to wait, wait for its next message or work elsewhere` +
   (free.length ? `; booted simulators no other session holds: ${free.join(', ')}.` : '.')
 
-// The folder every session's claim sits in, this session's root and its claude process, and how long a claim holds, set when the session starts.
+// The folder every session's claim sits in, and how long a claim holds, set when the session starts.
 let dir = ''
-let root = ''
-let claudePid = 0
 let holdMs = 10 * 60_000
 // Clashes already told, `<kind>:<item>:<session>`, so each is told once.
 const told = new Set<string>()
@@ -221,23 +141,6 @@ async function bootedSims($: EngineInterface) {
   } catch {
     return []
   }
-}
-
-async function psTable($: EngineInterface) {
-  const ran = await $.process.run(['ps', '-A', '-o', 'pid=,ppid=,comm='], { timeoutMs: 15_000 }).catch(() => null)
-
-  return parsePs(ran?.stdout ?? '')
-}
-
-async function served($: EngineInterface) {
-  if (!claudePid) return []
-  // lsof exits 1 when nothing listens, with nothing to read.
-  const [lsof, table] = await Promise.all([
-    $.process.run(['lsof', '-nP', '-iTCP', '-sTCP:LISTEN', '-Fpn'], { timeoutMs: 15_000 }).catch(() => null),
-    psTable($),
-  ])
-
-  return servedPorts(lsof?.stdout ?? '', table, claudePid)
 }
 
 async function others($: EngineInterface, session: string) {
@@ -260,12 +163,12 @@ async function save($: EngineInterface, claim: Claim) {
   await $.fs.write(`${dir}/${claim.session}.json`, JSON.stringify(claim)).catch(() => undefined)
 }
 
-/** Records this session's use of the items; `replace` swaps the kind's whole set, as for the ports it serves now. */
-async function record($: EngineInterface, kind: Kind, found: Found[], replace = false) {
+/** Records this session's use of the items. */
+async function record($: EngineInterface, kind: Kind, found: Found[]) {
   const me = await read($, mine)
   if (!me) return null
   const now = await $.clock.now()
-  const kept = replace ? {} : { ...me.items[kind] }
+  const kept = { ...me.items[kind] }
   for (const { id, name } of found) kept[id] = { name: name || (me.items[kind]?.[id]?.name ?? ''), at: now }
   const next: Claim = { ...me, at: now, items: { ...me.items, [kind]: kept } }
   await update($, mine, () => next)
@@ -288,9 +191,8 @@ async function warn($: EngineInterface, kind: Kind, found: Found[]) {
   await update($, view, () => ({ isXcode: v?.isXcode ?? false, booted, others: claims }))
   const free = kind === 'simulators' ? booted.filter(s => !claims.some(c => isHeld(c, c.items.simulators?.[s.udid]?.at, now, holdMs))).map(s => s.name) : []
 
-  for (const thing of found) {
-    const { id } = thing
-    const name = label(kind, id, me.items[kind]?.[id] ?? { ...thing, at: 0 })
+  for (const { id } of found) {
+    const name = label(kind, id, me.items[kind]?.[id])
     const fresh = claims.filter(c => isHeld(c, c.items[kind]?.[id]?.at, now, holdMs) && !told.has(`${kind}:${id}:${c.session}`))
     if (!fresh.length) continue
     for (const other of fresh) {
@@ -304,9 +206,11 @@ async function warn($: EngineInterface, kind: Kind, found: Found[]) {
 }
 
 async function refresh($: EngineInterface) {
-  const me = await record($, 'ports', await served($), true)
-  if (!me) return
+  const me = await read($, mine)
+  if (!me || !dir) return
   const now = await $.clock.now()
+  await update($, mine, () => ({ ...me, at: now }))
+  await save($, { ...me, at: now })
   const was = await read($, view)
   const isXcode = was?.isXcode ?? false
   const hasSims = Object.values(me.items.simulators ?? {}).some(s => now - s.at < holdMs)
@@ -334,14 +238,10 @@ export const register: Register = (on, options) => {
 
   on('session.start', async ($, e, next) => {
     const result = await next(e)
-    const [home, parent] = await Promise.all([
-      $.process.run(['printenv', 'HOME']).catch(() => null),
-      $.process.run(['sh', '-c', 'echo $PPID']).catch(() => null),
-    ])
+    const home = await $.process.run(['printenv', 'HOME']).catch(() => null)
     if (!home?.stdout.trim()) return result
     dir = `${home.stdout.trim()}/.claude/resource-watch`
-    root = await $.session.root()
-    claudePid = findClaude(await psTable($), Number(parent?.stdout.trim()) || 0)
+    const root = await $.session.root()
     const session = (await $.session.id()).replace(/[^\w-]/g, '')
     const kept = await read($, mine)
     if (kept?.session !== session) {
@@ -377,16 +277,13 @@ export const register: Register = (on, options) => {
     // After the call, so a simulator it just booted is in the list.
     const booted = SIM_COMMAND.test(command) || e.tool.startsWith('mcp__xcode__') ? await bootedSims($) : []
     for (const { kind, detect } of DETECTORS) {
-      const found = detect({ tool: e.tool, input, booted, root })
+      const found = detect({ tool: e.tool, input, booted })
       if (found.length && (await record($, kind, found))) await warn($, kind, found)
     }
     if (e.tool === 'mcp__claude-design__create_project' && typeof input.name === 'string') {
       const id = /"(?:project_)?id"\s*:\s*"([^"]+)"/.exec(JSON.stringify(result.result ?? ''))?.[1]
       if (id) await record($, 'designs', [{ id, name: clean(input.name) }])
     }
-    // A port another session serves is warned about, not taken; what this session serves is found by the poll, or now for a background server.
-    if (command) await warn($, 'ports', portsIn(command))
-    if (input.run_in_background === true) await refresh($)
 
     return result
   }).catch(($, e, next) => next(e))

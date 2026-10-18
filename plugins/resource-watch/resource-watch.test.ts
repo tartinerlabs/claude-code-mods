@@ -1,5 +1,5 @@
 import { describe, expect, mock, test as it } from 'claude-code/testing'
-import { DETECTORS, findClaude, parseBooted, parsePs, portsIn, rows, selfNote, servedPorts, simulatorsIn } from './hooks/register'
+import { DETECTORS, parseBooted, rows, selfNote, simulatorsIn } from './hooks/register'
 
 const BAND = {
   hasSurvey: false,
@@ -20,13 +20,9 @@ const SIMCTL = JSON.stringify({
   },
 })
 
-// launchd, the terminal's shell, this session's claude with a dev server two levels down, and another claude's server.
-const PS = ['    1     0 /sbin/launchd', '  500     1 -zsh', '  600   500 claude', '  700   600 /bin/zsh', '  710   700 node', '  800   500 claude', '  810   800 node'].join('\n')
-const LSOF = ['p710', 'f20', 'n*:3000', 'f21', 'n[::1]:3000', 'p810', 'f20', 'n127.0.0.1:5173'].join('\n')
-
 const run = (stdout: string, exitCode = 0) => ({ value: { exitCode, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } })
 const detect = (kind: string, tool: string, input: Record<string, unknown>) =>
-  DETECTORS.find(d => d.kind === kind)!.detect({ tool, input, booted: [PRO], root: '/work/app' })
+  DETECTORS.find(d => d.kind === kind)!.detect({ tool, input, booted: [PRO] })
 
 describe('parseBooted', () => {
   it('should keep booted devices and read the runtime key', () => {
@@ -52,12 +48,6 @@ describe('simulatorsIn', () => {
 })
 
 describe('detectors', () => {
-  it('should take a file by its absolute path and name it inside the root', () => {
-    expect(detect('files', 'Edit', { file_path: '/work/app/src/index.ts' })).toEqual([{ id: '/work/app/src/index.ts', name: 'src/index.ts' }])
-    expect(detect('files', 'NotebookEdit', { notebook_path: '/elsewhere/a.ipynb' })).toEqual([{ id: '/elsewhere/a.ipynb', name: '/elsewhere/a.ipynb' }])
-    expect(detect('files', 'Read', { file_path: '/work/app/src/index.ts' })).toEqual([])
-  })
-
   it('should take the Xcode app on calls that change its state and leave reads alone', () => {
     expect(detect('xcode', 'mcp__xcode__XcodeSwitchScheme', { scheme: 'App' })).toEqual([{ id: 'Xcode', name: 'the Xcode app' }])
     expect(detect('xcode', 'mcp__xcode__BuildProject', {})).toHaveLength(1)
@@ -69,33 +59,14 @@ describe('detectors', () => {
   })
 })
 
-describe('ports', () => {
-  it('should read the ports a command names', () => {
-    expect(portsIn('PORT=4000 pnpm dev && curl -s localhost:3000/api --port=8080').map(p => p.id)).toEqual(['4000', '3000', '8080'])
-    expect(portsIn('mkdir -p 3000 && git log -n 3000')).toEqual([])
-  })
-
-  it('should find this session among its ancestors and keep only the ports it serves', () => {
-    const table = parsePs(PS)
-    expect(findClaude(table, 700)).toBe(600)
-    expect(findClaude(table, 600)).toBe(600)
-    expect(servedPorts(LSOF, table, 600)).toEqual([{ id: '3000', name: 'localhost:3000' }])
-  })
-})
-
 describe('rows', () => {
-  const me = { session: 'a', project: 'app', at: 0, items: { designs: { d1: { name: 'Onboarding', at: 0 } }, files: { '/work/app/a.ts': { name: 'a.ts', at: 0 } } } }
+  const me = { session: 'a', project: 'app', at: 0, items: { designs: { d1: { name: 'Onboarding', at: 0 } } } }
 
-  it('should show free simulators in an Xcode project and this session’s designs, and hide files nobody shares', () => {
+  it('should show free simulators in an Xcode project and this session’s designs', () => {
     expect(rows({ isXcode: true, booted: [PRO], others: [] }, me, 1000, 60_000)).toEqual([
       { icon: '📱', label: 'iPhone 18 Pro (iOS 27.2)', status: 'free', color: 'gray' },
       { icon: '🎨', label: 'Onboarding', status: 'this session', color: 'green' },
     ])
-  })
-
-  it('should show a file once another session edits it too', () => {
-    const other = { session: 'b', project: 'app', at: 1000, items: { files: { '/work/app/a.ts': { name: 'a.ts', at: 900 } } } }
-    expect(rows({ isXcode: false, booted: [], others: [other] }, me, 1000, 60_000)).toContainEqual({ icon: '📄', label: 'a.ts', status: '⚠ also another app session', color: 'yellow' })
   })
 
   it('should drop a claim from a session that stopped writing it', () => {
@@ -111,13 +82,10 @@ describe('selfNote', () => {
   })
 })
 
-/** Stands in for the machine: HOME, this session's claude at 600, the booted iPhone, an Xcode project and the listening ports. */
+/** Stands in for the machine: HOME, the booted iPhone and an Xcode project. */
 const machine = ($: unknown, e: { argv: readonly string[] }) => {
   const [cmd] = e.argv
   if (cmd === 'printenv') return run('/home/me\n')
-  if (cmd === 'sh') return run('600\n')
-  if (cmd === 'ps') return run(PS)
-  if (cmd === 'lsof') return run(LSOF)
   if (cmd === 'git') return run('App.xcodeproj/project.pbxproj\n')
 
   return run(SIMCTL)
@@ -147,7 +115,6 @@ describe('resource-watch', () => {
       await $.session.start({ surface, isInteractive: true, cwd: '/work/app' })
       const ui = await $.ui.mount({ plugin: 'resource-watch', surface, component: 'AbovePrompt', props: BAND })
       expect(await ui.find({ type: 'Text', text: '📱 iPhone 18 Pro (iOS 27.2) · the web session', props: { color: 'cyan' } })).toBeDefined()
-      expect(await ui.find({ type: 'Text', text: '🔌 localhost:3000 · this session', props: { color: 'green' } })).toBeDefined()
 
       await $.tool.call({ tool: 'Bash', command: 'xcrun simctl launch booted com.example.app', description: 'Launch' })
       expect(toasts).toEqual(['iPhone 18 Pro is also in use by the web session'])
@@ -166,10 +133,10 @@ describe('resource-watch', () => {
     })
   }
 
-  it('should tell the session serving a port another session uses', async ($, on) => {
+  it('should tell the sessions it shared the Xcode app with when it ends', async ($, on) => {
     mock.clock(on, { now: 1_000_000 })
     const sent: string[] = []
-    const other = { session: 'other', project: 'web', at: 1_000_000, items: { ports: { '5173': { name: 'localhost:5173', at: 1_000_000 } } } }
+    const other = { session: 'other', project: 'app', at: 1_000_000, items: { xcode: { Xcode: { name: 'the Xcode app', at: 1_000_000 } } } }
     on('session.start', ($, e) => ({ cwd: e.cwd }))
     on('session.id', () => ({ value: 'mine' }))
     on('session.root', () => ({ value: '/work/app' }))
@@ -177,35 +144,15 @@ describe('resource-watch', () => {
     on('fs.list', () => ({ value: [{ name: 'other.json', kind: 'file' as const, size: 1, mtimeMs: 0, isLink: false }] }))
     on('fs.read', () => ({ value: JSON.stringify(other) }))
     on('fs.write', () => ({ value: undefined }))
-    on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false }, text: '' }))
-    on('ui.toast', () => ({ value: undefined }))
-    on('session.send', ($, e) => (sent.push(e.text), { isDelivered: true as const }))
-
-    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work/app' })
-    await $.tool.call({ tool: 'Bash', command: 'curl -s localhost:5173/', description: 'Fetch' })
-    expect(sent).toEqual([expect.stringMatching(/has started using localhost:5173, which you are serving\./)])
-  })
-
-  it('should tell the sessions it shared a file with when it ends', async ($, on) => {
-    mock.clock(on, { now: 1_000_000 })
-    const sent: string[] = []
-    const other = { session: 'other', project: 'app', at: 1_000_000, items: { files: { '/work/app/a.ts': { name: 'a.ts', at: 1_000_000 } } } }
-    on('session.start', ($, e) => ({ cwd: e.cwd }))
-    on('session.id', () => ({ value: 'mine' }))
-    on('session.root', () => ({ value: '/work/app' }))
-    on('process.run', machine)
-    on('fs.list', () => ({ value: [{ name: 'other.json', kind: 'file' as const, size: 1, mtimeMs: 0, isLink: false }] }))
-    on('fs.read', () => ({ value: JSON.stringify(other) }))
-    on('fs.write', () => ({ value: undefined }))
-    on('tool.call', { tool: 'Edit' }, () => ({ result: {}, text: 'ok' }))
+    on('tool.call', { tool: 'mcp__xcode__XcodeSwitchScheme' }, () => ({ result: {}, text: 'ok' }))
     on('ui.toast', () => ({ value: undefined }))
     on('session.send', ($, e) => (sent.push(e.text), { isDelivered: true as const }))
     on('session.end', () => ({ sessionId: 'mine' }))
 
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work/app' })
-    await $.tool.call({ tool: 'Edit', file_path: '/work/app/a.ts', old_string: 'a', new_string: 'b' })
-    expect(sent).toEqual([expect.stringMatching(/has started using a\.ts, which you have also been editing\./)])
+    await $.tool.call({ tool: 'mcp__xcode__XcodeSwitchScheme', scheme: 'App' })
+    expect(sent).toEqual([expect.stringMatching(/has started using the Xcode app, which you are also driving\./)])
     await $.session.end({ reason: 'other' })
-    expect(sent[1]).toBe('resource-watch: the app session (mine) has ended and is no longer using a.ts.')
+    expect(sent[1]).toBe('resource-watch: the app session (mine) has ended and is no longer using the Xcode app.')
   })
 })
