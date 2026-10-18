@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.14.0...v0.15.0) (2026-10-18)
+
+
+### Features
+
+* **resource-watch:** add resource watch mod for simulators, Claude Design projects and the Xcode app shared between sessions ([#31](https://github.com/tartinerlabs/claude-code-mods/pull/31))
+
 ## [0.14.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.13.1...v0.14.0) (2026-10-16)
 
 
