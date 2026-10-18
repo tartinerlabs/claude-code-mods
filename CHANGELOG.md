@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.15.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.14.0...v0.15.0) (2026-10-18)
+
+
+### Features
+
+* **resource-watch:** add files, ports and Xcode ([0cc8187](https://github.com/tartinerlabs/claude-code-mods/commit/0cc81874209d77c7b5defd886c3c07f966ed24dc))
+* **resource-watch:** drop files and ports ([cf7f00f](https://github.com/tartinerlabs/claude-code-mods/commit/cf7f00fc3d134656a2ac23cd02f6e4e1a93e8e4d))
+* **resource-watch:** wait for simulator holders ([2c176e0](https://github.com/tartinerlabs/claude-code-mods/commit/2c176e077c8a11eacccd19117319dfe4f55fe583))
+* **simulator-watch:** add simulator watch mod ([62e4573](https://github.com/tartinerlabs/claude-code-mods/commit/62e4573c14f700b8257a3046911fbc9f18ee9691))
+
 ## [0.14.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.13.1...v0.14.0) (2026-10-16)
 
 
