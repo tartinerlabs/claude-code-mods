@@ -27,6 +27,7 @@
 | 📊 | [limit-watch](#-limit-watch) | Band above the prompt, toasts | Shows the 5-hour and weekly usage limits and the session's cost |
 | 🛫 | [pr-pilot](#-pr-pilot) | Band above the prompt, toasts | Shows the branch's PR checks and merges it with `/merge` |
 | 📝 | [release-notes](#-release-notes) | Band above the prompt, toast | Drafts App Store release notes for Xcode projects when the version is bumped |
+| 📱 | [simulator-watch](#-simulator-watch) | Band above the prompt, toast | Shows which session is using each booted simulator and Claude Design project, and messages the other session on a clash |
 | 🗜 | [smart-compact](#-smart-compact) | Toast | Compacts between turns, sooner at checkpoints or when the cache is cooling |
 | ⛅ | [token-weather](#-token-weather) | Band above the prompt | Forecasts how full the context window is |
 
@@ -100,6 +101,17 @@ Release notes for 2.4.0 drafted in fastlane/metadata/en-US/release_notes.txt   �
 ```
 
 <sub>📁 [`plugins/release-notes`](plugins/release-notes)</sub>
+
+### 📱 simulator-watch
+
+Shows which Claude Code session is using each booted Apple simulator and Claude Design project, so parallel agents do not fight over one. In an Xcode project, or once the session has used a simulator, it lists every booted simulator with the sessions holding it, labelled by their project's folder. A session takes a simulator when `simctl` or `xcodebuild` names it by UDID or name, or uses `booted` or an Xcode MCP run while only one is booted; it takes a Claude Design project with any `claude-design` tool call on it. A hold lasts the `hold` option's minutes (10 by default) after the last call, and ends with the session. Sessions share their holds as files in `~/.claude/simulator-watch/`. When a session picks up one another session holds, it toasts, messages the holding session so its agent can reply asking it to wait, and tells its own agent who holds it and which booted simulators are free. A session that ends tells the sessions it shared with that it has let go.
+
+```text
+📱 iPhone 18 Pro (iOS 27.2) · this session  🎨 Onboarding · ⚠ also web        ← band
+iPhone 18 Pro is also in use by web                                           ← toast
+```
+
+<sub>📁 [`plugins/simulator-watch`](plugins/simulator-watch)</sub>
 
 ### 🗜 smart-compact
 

@@ -1,0 +1,19 @@
+{
+  "name": "simulator-watch",
+  "displayName": "Simulator Watch",
+  "version": "0.14.0",
+  "description": "Shows which booted Apple simulators and Claude Design projects each Claude Code session is using, above the prompt, and when another session already holds the one this session picks up, toasts, messages that session and tells this session's agent what is free.",
+  "author": {
+    "name": "Tartiner Labs",
+    "url": "https://tartinerlabs.com"
+  },
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "hold": {
+      "type": "number",
+      "title": "Hold (minutes)",
+      "description": "How long a session keeps a simulator or Claude Design project after its last tool call on it.",
+      "default": 10
+    }
+  }
+}
