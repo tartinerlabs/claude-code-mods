@@ -13,6 +13,13 @@ const XCODE_RUN = /^mcp__xcode__(RunProject|RunAllTests|RunSomeTests|DeviceInter
 const XCODE_STATE = /^mcp__xcode__(XcodeSwitch\w+|XcodeOpenWorkspace|XcodeCloseWorkspace|BuildProject|RunProject|StopProject|RunAllTests|RunSomeTests)$/
 const DESIGN = /^mcp__claude-design__/
 const SIM_COMMAND = /\b(simctl|xcodebuild|Simulator)\b/
+// simctl subcommands and xcodebuild flags that only look: listing devices, SDKs or destinations, help and versions.
+const SIMCTL_READ = /^(list|help|getenv|-h|--help|--version)$/
+const XCODEBUILD_READ = /^-(list|showsdks|showdestinations|showBuildSettings|version|help)$/
+// Xcode MCP tools after which this session is done with the simulators it ran on.
+const XCODE_DONE = /^mcp__xcode__(StopProject|DeviceInteractionEndSession)$/
+// How long a refused session counts as waiting for a simulator, so a holder that is done much later still tells it.
+const WAIT_MS = 60 * 60_000
 
 const view = atom({ plugin: 'resource-watch', key: 'view' } as const, null as View | null)
 const mine = atom({ plugin: 'resource-watch', key: 'mine' } as const, null as Claim | null)
@@ -21,6 +28,16 @@ const mine = atom({ plugin: 'resource-watch', key: 'mine' } as const, null as Cl
 export const clean = (text: string) => text.replace(/[\u0000-\u001f\u007f-\u009f]/g, '')
 
 type SimctlDevice = { udid: string; name: string; state: string }
+
+/** Whether every simctl and xcodebuild call in a command only looks, as `simctl list` does, so it takes no simulator. */
+export function isReadOnly(command: string) {
+  const simctl = [...command.matchAll(/\bsimctl\s+(\S+)/g)].map(m => m[1]!)
+  const xcodebuild = [...command.matchAll(/\bxcodebuild\b([^|;&\n]*)/g)].map(m => m[1]!.trim().split(/\s+/))
+  // `open -a Simulator` and the like.
+  if (!simctl.length && !xcodebuild.length) return false
+
+  return simctl.every(s => SIMCTL_READ.test(s)) && xcodebuild.every(args => args.some(a => XCODEBUILD_READ.test(a)))
+}
 
 /** The booted devices in `xcrun simctl list devices booted -j`, with each runtime key read as `iOS 27.2`. */
 export function parseBooted(json: { devices?: Record<string, SimctlDevice[]> }): Sim[] {
@@ -38,7 +55,7 @@ export function parseBooted(json: { devices?: Record<string, SimctlDevice[]> }):
  */
 export function simulatorsIn(tool: string, input: Record<string, unknown>, booted: readonly Sim[]): Sim[] {
   const text = tool === 'Bash' ? String(input.command ?? '') : tool.startsWith('mcp__xcode__') ? JSON.stringify(input) : ''
-  if (!text || (tool === 'Bash' && !SIM_COMMAND.test(text))) return []
+  if (!text || (tool === 'Bash' && (!SIM_COMMAND.test(text) || isReadOnly(text)))) return []
 
   const byUdid = booted.filter(s => text.includes(s.udid))
   if (byUdid.length) return byUdid
@@ -116,22 +133,40 @@ function status(who: string[]) {
   return { status: isMine ? 'this session' : who.join(', '), color: isMine ? 'green' : 'cyan' }
 }
 
-/** The message the holding session's model reads when this session picks up what it holds. */
+/** The message the holding session's model reads when this session picks up a Claude Design project or the Xcode app it holds. */
 export const holderNote = (me: Claim, kind: Kind, name: string) =>
   `resource-watch: the ${me.project} session (${me.session}) has started using ${name}, ${ALSO[kind]}. ` +
-  `If you are in the middle of something on it, reply to this message to ask it to wait or to use another one; otherwise no reply is needed.`
+  `If you are in the middle of something on it, reply to this message to ask it to wait; otherwise no reply is needed.`
 
-/** The note this session's model reads: who else holds the item, that they were told, and which simulators are free instead. */
-export const selfNote = (name: string, holders: string[], free: string[]) =>
+/** The note this session's model reads when another session also holds the Claude Design project or Xcode app it just used. */
+export const selfNote = (name: string, holders: string[]) =>
   `resource-watch: ${name} is also in use by ${holders.join(' and ')}, which has been told you are using it. ` +
-  `If a reply asks you to wait, wait for its next message or work elsewhere` +
-  (free.length ? `; booted simulators no other session holds: ${free.join(', ')}.` : '.')
+  `If a reply asks you to wait, wait for its next message.`
+
+/** The message the holding session's model reads when this session wants a simulator it holds. */
+export const askNote = (me: Claim, name: string) =>
+  `resource-watch: the ${me.project} session (${me.session}) wants to use ${name}, which you are using, and is waiting for your reply. ` +
+  `Reply to this message to say whether it can go ahead now or should wait; resource-watch tells it when you are done.`
+
+/** The refusal this session's model reads in place of a call on a simulator another session holds. */
+export const waitNote = (name: string, holders: string[]) =>
+  `resource-watch: ${name} is in use by ${holders.join(' and ')}, which has been asked whether you can use it. ` +
+  `Wait for its reply before calling again: if it says go ahead, repeat the call and it will run; if it asks you to wait, wait for its next message or the note that it is done. ` +
+  `Do not switch to another simulator or create one; ask your user if you cannot wait.`
+
+/** The message a waiting session's model reads once the holder is done with its simulators. */
+export const doneNote = (me: Claim, names: string[]) =>
+  `resource-watch: the ${me.project} session (${me.session}) is done with ${names.join(', ')}, so you can use it now.`
 
 // The folder every session's claim sits in, and how long a claim holds, set when the session starts.
 let dir = ''
 let holdMs = 10 * 60_000
 // Clashes already told, `<kind>:<item>:<session>`, so each is told once.
 const told = new Set<string>()
+// Simulator clashes already asked about, `<udid>:<session>`: the next call goes through, as the holder has had its say.
+const asked = new Set<string>()
+// The simulators this session held at the last poll, so one whose hold ran out is noticed.
+let heldSims = new Set<string>()
 
 async function bootedSims($: EngineInterface) {
   const ran = await $.process.run(['xcrun', 'simctl', 'list', 'devices', 'booted', '-j'], { timeoutMs: 15_000 }).catch(() => null)
@@ -170,7 +205,9 @@ async function record($: EngineInterface, kind: Kind, found: Found[]) {
   const now = await $.clock.now()
   const kept = { ...me.items[kind] }
   for (const { id, name } of found) kept[id] = { name: name || (me.items[kind]?.[id]?.name ?? ''), at: now }
-  const next: Claim = { ...me, at: now, items: { ...me.items, [kind]: kept } }
+  // A simulator this session now uses is no longer one it waits for.
+  const waiting = kind === 'simulators' ? Object.fromEntries(Object.entries(me.waiting ?? {}).filter(([id]) => !found.some(f => f.id === id))) : me.waiting
+  const next: Claim = { ...me, at: now, items: { ...me.items, [kind]: kept }, waiting }
   await update($, mine, () => next)
   await save($, next)
 
@@ -178,8 +215,60 @@ async function record($: EngineInterface, kind: Kind, found: Found[]) {
 }
 
 /**
- * For each item another live session also holds, once per pair: toasts, messages that session, and
- * tells this session's model who holds it and, for a simulator, which booted ones are free.
+ * Refuses a call on simulators another live session holds, once per pair, after asking that session
+ * and noting that this one waits; undefined lets the call run.
+ */
+async function gate($: EngineInterface, sims: Sim[]) {
+  const me = await read($, mine)
+  if (!me || !sims.length) return undefined
+  const now = await $.clock.now()
+  const claims = await others($, me.session)
+  const waiting = { ...me.waiting }
+  const refusals: string[] = []
+  for (const sim of sims) {
+    const holding = claims.filter(c => isHeld(c, c.items.simulators?.[sim.udid]?.at, now, holdMs) && !asked.has(`${sim.udid}:${c.session}`))
+    if (!holding.length) continue
+    for (const other of holding) {
+      asked.add(`${sim.udid}:${other.session}`)
+      $.ui.toast(`${sim.name} is in use by ${who(other, me)}; asked it, waiting`, { timeoutMs: 8000 })
+      await $.session.send({ to: { sessionId: other.session }, text: askNote(me, sim.name) }).catch(() => undefined)
+    }
+    waiting[sim.udid] = now
+    refusals.push(waitNote(sim.name, holding.map(c => who(c, me))))
+  }
+  if (!refusals.length) return undefined
+  const next: Claim = { ...me, at: now, waiting }
+  await update($, mine, () => next)
+  await save($, next)
+
+  return refusals.join('\n')
+}
+
+/** Tells every live session waiting for one of these simulators that this session is done with it. */
+async function tellWaiters($: EngineInterface, me: Claim, ids: string[]) {
+  if (!ids.length) return
+  const now = await $.clock.now()
+  for (const other of await others($, me.session)) {
+    const names = ids.filter(id => isHeld(other, other.waiting?.[id], now, WAIT_MS)).map(id => me.items.simulators?.[id]?.name ?? id)
+    if (names.length) await $.session.send({ to: { sessionId: other.session }, text: doneNote(me, names) }).catch(() => undefined)
+  }
+}
+
+/** Lets go of this session's simulators, as after `StopProject`, and tells the sessions waiting for them. */
+async function done($: EngineInterface) {
+  const me = await read($, mine)
+  const ids = Object.keys(me?.items.simulators ?? {})
+  if (!me || !ids.length) return
+  const next: Claim = { ...me, at: await $.clock.now(), items: { ...me.items, simulators: {} } }
+  await update($, mine, () => next)
+  await save($, next)
+  heldSims = new Set()
+  await tellWaiters($, me, ids)
+}
+
+/**
+ * For each Claude Design project or Xcode app another live session also holds, once per pair: toasts,
+ * messages that session, and tells this session's model who holds it.
  */
 async function warn($: EngineInterface, kind: Kind, found: Found[]) {
   const me = await read($, mine)
@@ -187,9 +276,7 @@ async function warn($: EngineInterface, kind: Kind, found: Found[]) {
   const now = await $.clock.now()
   const claims = await others($, me.session)
   const v = await read($, view)
-  const booted = v?.booted ?? []
-  await update($, view, () => ({ isXcode: v?.isXcode ?? false, booted, others: claims }))
-  const free = kind === 'simulators' ? booted.filter(s => !claims.some(c => isHeld(c, c.items.simulators?.[s.udid]?.at, now, holdMs))).map(s => s.name) : []
+  await update($, view, () => ({ isXcode: v?.isXcode ?? false, booted: v?.booted ?? [], others: claims }))
 
   for (const { id } of found) {
     const name = label(kind, id, me.items[kind]?.[id])
@@ -200,7 +287,7 @@ async function warn($: EngineInterface, kind: Kind, found: Found[]) {
       $.ui.toast(`${name} is also in use by ${who(other, me)}`, { timeoutMs: 8000 })
       await $.session.send({ to: { sessionId: other.session }, text: holderNote(me, kind, name) }).catch(() => undefined)
     }
-    const text = selfNote(name, fresh.map(c => who(c, me)), free)
+    const text = selfNote(name, fresh.map(c => who(c, me)))
     await $.session.append({ message: { type: 'user', content: [{ type: 'text', text }] } }).catch(() => undefined)
   }
 }
@@ -216,13 +303,25 @@ async function refresh($: EngineInterface) {
   const hasSims = Object.values(me.items.simulators ?? {}).some(s => now - s.at < holdMs)
   const [sims, claims] = await Promise.all([isXcode || hasSims ? bootedSims($) : Promise.resolve([]), others($, me.session)])
   await update($, view, () => ({ isXcode, booted: sims, others: claims }))
+
+  // A hold that ran out since the last poll is this session being done with that simulator.
+  const held = new Set(Object.entries(me.items.simulators ?? {}).filter(([, s]) => now - s.at < holdMs).map(([id]) => id))
+  const lapsed = [...heldSims].filter(id => !held.has(id))
+  heldSims = held
+  await tellWaiters($, me, lapsed)
+  // Once a holder lets a simulator go, a later clash with it is asked about again.
+  for (const key of asked) {
+    const [udid, session] = key.split(':') as [string, string]
+    if (!claims.some(c => c.session === session && isHeld(c, c.items.simulators?.[udid]?.at, now, holdMs))) asked.delete(key)
+  }
 }
 
-/** Tells every live session that shares an item with this one that this session has let it go. */
+/** Tells the sessions waiting for this one's simulators, and every live session sharing its other items, that it has let them go. */
 async function release($: EngineInterface, me: Claim) {
   const now = await $.clock.now()
+  await tellWaiters($, me, Object.entries(me.items.simulators ?? {}).filter(([, s]) => now - s.at < holdMs).map(([id]) => id))
   for (const other of await others($, me.session)) {
-    const shared = Object.entries(me.items).flatMap(([kind, items]) =>
+    const shared = Object.entries(me.items).filter(([kind]) => kind !== 'simulators').flatMap(([kind, items]) =>
       Object.entries(items ?? {})
         .filter(([id, item]) => now - item.at < holdMs && isHeld(other, other.items[kind as Kind]?.[id]?.at, now, holdMs))
         .map(([id, item]) => label(kind as Kind, id, item)),
@@ -269,17 +368,24 @@ export const register: Register = (on, options) => {
   })
 
   on('tool.call', async ($, e, next) => {
-    const result = await next(e)
-    if (result.deny !== undefined) return result
     const input = e as unknown as Record<string, unknown>
     const command = e.tool === 'Bash' ? String(input.command ?? '') : ''
+    const touchesSims = SIM_COMMAND.test(command) || e.tool.startsWith('mcp__xcode__')
+
+    // Before the call, so a simulator another session holds waits for that session's answer.
+    const refusal = touchesSims ? await gate($, simulatorsIn(e.tool, input, await bootedSims($))) : undefined
+    if (refusal) return { deny: refusal }
+
+    const result = await next(e)
+    if (result.deny !== undefined) return result
 
     // After the call, so a simulator it just booted is in the list.
-    const booted = SIM_COMMAND.test(command) || e.tool.startsWith('mcp__xcode__') ? await bootedSims($) : []
+    const booted = touchesSims ? await bootedSims($) : []
     for (const { kind, detect } of DETECTORS) {
       const found = detect({ tool: e.tool, input, booted })
-      if (found.length && (await record($, kind, found))) await warn($, kind, found)
+      if (found.length && (await record($, kind, found)) && kind !== 'simulators') await warn($, kind, found)
     }
+    if (XCODE_DONE.test(e.tool) && !result.isError) await done($)
     if (e.tool === 'mcp__claude-design__create_project' && typeof input.name === 'string') {
       const id = /"(?:project_)?id"\s*:\s*"([^"]+)"/.exec(JSON.stringify(result.result ?? ''))?.[1]
       if (id) await record($, 'designs', [{ id, name: clean(input.name) }])

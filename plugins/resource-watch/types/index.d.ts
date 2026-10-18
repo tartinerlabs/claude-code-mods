@@ -15,6 +15,8 @@ export type Claim = {
   /** When the session last wrote its claim; a claim not rewritten for a while belongs to a session that is gone. */
   at: number
   items: Partial<Record<Kind, Record<string, Item>>>
+  /** The simulators, by UDID, this session was refused because another session held them, and when; their holders tell it once they are done. */
+  waiting?: Record<string, number>
 }
 
 /** What the band draws from: the booted simulators and every other live session's claim. */

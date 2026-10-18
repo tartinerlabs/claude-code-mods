@@ -1,5 +1,5 @@
 import { describe, expect, mock, test as it } from 'claude-code/testing'
-import { DETECTORS, parseBooted, rows, selfNote, simulatorsIn } from './hooks/register'
+import { DETECTORS, parseBooted, rows, selfNote, simulatorsIn, waitNote } from './hooks/register'
 
 const BAND = {
   hasSurvey: false,
@@ -42,6 +42,13 @@ describe('simulatorsIn', () => {
     expect(simulatorsIn('mcp__xcode__RunProject', {}, [PRO, MAX])).toEqual([])
   })
 
+  it('should leave a simulator alone for commands that only look', () => {
+    expect(simulatorsIn('Bash', { command: 'xcrun simctl list devices booted' }, [PRO])).toEqual([])
+    expect(simulatorsIn('Bash', { command: 'xcodebuild -showdestinations -scheme App' }, [PRO])).toEqual([])
+    expect(simulatorsIn('Bash', { command: 'xcrun simctl io booted screenshot shot.png' }, [PRO])).toEqual([PRO])
+    expect(simulatorsIn('Bash', { command: `xcodebuild -scheme App -destination 'id=${PRO.udid}' test` }, [PRO])).toEqual([PRO])
+  })
+
   it('should ignore commands that do not touch a simulator', () => {
     expect(simulatorsIn('Bash', { command: `echo ${PRO.name}` }, [PRO])).toEqual([])
   })
@@ -75,10 +82,10 @@ describe('rows', () => {
   })
 })
 
-describe('selfNote', () => {
-  it('should name the free simulators when there are some', () => {
-    expect(selfNote('iPhone 18 Pro', ['the web session'], ['iPad Air'])).toMatch(/told you are using it\. If a reply asks you to wait, wait for its next message or work elsewhere; booted simulators no other session holds: iPad Air\.$/)
-    expect(selfNote('Onboarding', ['another app session'], [])).toMatch(/work elsewhere\.$/)
+describe('notes', () => {
+  it('should never point a waiting session at another simulator', () => {
+    expect(waitNote('iPhone 18 Pro', ['the web session'])).toMatch(/Do not switch to another simulator or create one; ask your user if you cannot wait\.$/)
+    expect(selfNote('Onboarding', ['another app session'])).toBe('resource-watch: Onboarding is also in use by another app session, which has been told you are using it. If a reply asks you to wait, wait for its next message.')
   })
 })
 
@@ -93,12 +100,12 @@ const machine = ($: unknown, e: { argv: readonly string[] }) => {
 
 describe('resource-watch', () => {
   for (const surface of ['terminal', 'desktop'] as const) {
-    it(`should warn when another session already holds the simulator on ${surface}`, async ($, on) => {
+    it(`should hold a simulator call until the session using it has been asked on ${surface}`, async ($, on) => {
       mock.clock(on, { now: 1_000_000 })
       const toasts: string[] = []
       const sent: { to: string; text: string }[] = []
-      const session = mock.session(on)
       const written: Record<string, string> = {}
+      let launches = 0
       const other = { session: 'other', project: 'web', at: 1_000_000, items: { simulators: { [PRO.udid]: { name: PRO.name, at: 1_000_000 } } } }
       on('session.start', ($, e) => ({ cwd: e.cwd }))
       on('session.id', () => ({ value: 'mine' }))
@@ -107,31 +114,65 @@ describe('resource-watch', () => {
       on('fs.list', () => ({ value: [{ name: 'other.json', kind: 'file' as const, size: 1, mtimeMs: 0, isLink: false }] }))
       on('fs.read', () => ({ value: JSON.stringify(other) }))
       on('fs.write', ($, e) => ((written[e.path] = e.text), { value: undefined }))
-      on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false }, text: '' }))
+      on('tool.call', { tool: 'Bash' }, () => (launches++, { result: { stdout: '', stderr: '', interrupted: false }, text: '' }))
       on('ui.toast', ($, e) => (toasts.push(e.text), { value: undefined }))
       on('session.send', ($, e) => (sent.push({ to: e.to, text: e.text }), { isDelivered: true as const }))
       on('ui.render', ($, e) => $.ui.resolve(e).Text({ children: 'beneath' }))
+      const launch = () => $.tool.call({ tool: 'Bash', command: 'xcrun simctl launch booted com.example.app', description: 'Launch' })
 
       await $.session.start({ surface, isInteractive: true, cwd: '/work/app' })
       const ui = await $.ui.mount({ plugin: 'resource-watch', surface, component: 'AbovePrompt', props: BAND })
       expect(await ui.find({ type: 'Text', text: '📱 iPhone 18 Pro (iOS 27.2) · the web session', props: { color: 'cyan' } })).toBeDefined()
 
-      await $.tool.call({ tool: 'Bash', command: 'xcrun simctl launch booted com.example.app', description: 'Launch' })
-      expect(toasts).toEqual(['iPhone 18 Pro is also in use by the web session'])
+      const held = await launch()
+      expect(held.deny).toContain('iPhone 18 Pro is in use by the web session, which has been asked whether you can use it.')
+      expect(launches).toBe(0)
+      expect(toasts).toEqual(['iPhone 18 Pro is in use by the web session; asked it, waiting'])
+      expect(sent).toEqual([{ to: expect.anything(), text: expect.stringMatching(/^resource-watch: the app session \(mine\) wants to use iPhone 18 Pro, which you are using, and is waiting for your reply\./) }])
+      expect(JSON.parse(written['/home/me/.claude/resource-watch/mine.json']!).waiting[PRO.udid]).toBe(1_000_000)
+
+      // Asked once, the repeat runs, takes the simulator and stops waiting for it.
+      await launch()
+      expect(launches).toBe(1)
       expect(sent).toHaveLength(1)
-      expect(sent[0]!.text).toMatch(/^resource-watch: the app session \(mine\) has started using iPhone 18 Pro, which you are also using\./)
-      const note = session.appended().find(r => r.door === 'note')
-      expect(JSON.stringify(note?.message.content)).toContain('iPhone 18 Pro is also in use by the web session, which has been told')
-      expect(JSON.parse(written['/home/me/.claude/resource-watch/mine.json']!).items.simulators[PRO.udid].name).toBe(PRO.name)
+      const claim = JSON.parse(written['/home/me/.claude/resource-watch/mine.json']!)
+      expect(claim.items.simulators[PRO.udid].name).toBe(PRO.name)
+      expect(claim.waiting).toEqual({})
       expect(await ui.find({ type: 'Text', text: '📱 iPhone 18 Pro (iOS 27.2) · ⚠ also the web session', props: { color: 'yellow' } })).toBeDefined()
       expect(await ui.find({ type: 'Text', text: 'beneath' })).toBeDefined()
-
-      // The same clash is told once.
-      await $.tool.call({ tool: 'Bash', command: 'xcrun simctl launch booted com.example.app', description: 'Launch' })
-      expect(sent).toHaveLength(1)
       await ui.unmount()
     })
   }
+
+  it('should tell a waiting session once it stops and once its hold runs out', async ($, on) => {
+    const clock = mock.clock(on, { now: 1_000_000 })
+    const sent: string[] = []
+    const waiter = { session: 'other', project: 'web', at: 1_000_000, items: {}, waiting: { [PRO.udid]: 1_000_000 } }
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('session.id', () => ({ value: 'mine' }))
+    on('session.root', () => ({ value: '/work/app' }))
+    on('process.run', machine)
+    on('fs.list', () => ({ value: [{ name: 'other.json', kind: 'file' as const, size: 1, mtimeMs: 0, isLink: false }] }))
+    on('fs.read', () => ({ value: JSON.stringify(waiter) }))
+    on('fs.write', () => ({ value: undefined }))
+    on('tool.call', () => ({ result: {}, text: 'ok' }))
+    on('ui.toast', () => ({ value: undefined }))
+    on('session.send', ($, e) => (sent.push(e.text), { isDelivered: true as const }))
+    const done = 'resource-watch: the app session (mine) is done with iPhone 18 Pro, so you can use it now.'
+
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work/app' })
+    await $.tool.call({ tool: 'mcp__xcode__RunProject' })
+    expect(sent).toEqual([])
+    await $.tool.call({ tool: 'mcp__xcode__StopProject' })
+    expect(sent).toEqual([done])
+
+    // Used again and left alone: the hold runs out and the waiter hears so at the next poll.
+    await $.tool.call({ tool: 'Bash', command: 'xcrun simctl launch booted com.example.app', description: 'Launch' })
+    await clock.advance(30_000)
+    waiter.at = 1_000_000 + 11 * 60_000
+    await clock.advance(11 * 60_000)
+    expect(sent).toEqual([done, done])
+  })
 
   it('should tell the sessions it shared the Xcode app with when it ends', async ($, on) => {
     mock.clock(on, { now: 1_000_000 })
