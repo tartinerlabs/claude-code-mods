@@ -6,7 +6,7 @@ export type Naming = {
   prompts: string[]
   /** The last title this mod gave; null before it names the session. */
   title: string | null
-  /** True once the title is final, or the session was named some other way. */
+  /** True once the session was named some other way, such as -n or /rename. */
   isDone: boolean
 }
 
