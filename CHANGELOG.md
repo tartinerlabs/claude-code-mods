@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.16.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.15.0...v0.16.0) (2026-10-24)
+
+
+### Features
+
+* **auto-session-name:** keep session names current ([8ccbb45](https://github.com/tartinerlabs/claude-code-mods/commit/8ccbb45c5d49d7d1b07027ca9bba2db9cda3c23c))
+
+
+### Bug Fixes
+
+* **release-notes:** rename command to avoid clash ([b870dbe](https://github.com/tartinerlabs/claude-code-mods/commit/b870dbe8a57ccba932854813a9c8eb75d8493579))
+
 ## [0.15.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.14.0...v0.15.0) (2026-10-18)
 
 
