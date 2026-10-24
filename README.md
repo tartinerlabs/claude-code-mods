@@ -22,7 +22,7 @@
 | | Mod | Where it shows | In one line |
 | :-: | --- | --- | --- |
 | ⏸ | [auto-resume](#-auto-resume) | Status line, toast | Picks a turn back up once a usage limit resets |
-| 🏷 | [auto-session-name](#-auto-session-name) | Session title | Names each session from its first prompt, re-titling once if that was short |
+| 🏷 | [auto-session-name](#-auto-session-name) | Session title | Names each session from its first prompt and keeps the name current as the work moves on |
 | ⏱ | [cache-clock](#-cache-clock) | Band above the prompt | Counts down to the prompt cache going cold |
 | 📊 | [limit-watch](#-limit-watch) | Band above the prompt, toasts | Shows the 5-hour and weekly usage limits and the session's cost |
 | 🛫 | [pr-pilot](#-pr-pilot) | Band above the prompt, toasts | Shows the branch's PR checks and merges it with `/merge` |
@@ -46,7 +46,7 @@ Usage limit reset, resuming                                 ← toast
 
 ### 🏷 auto-session-name
 
-Names each session from its first prompt using Haiku and can give it a prompt bar colour, so it is easy to find with `claude -r` after a crash. When the first prompt is short, such as `continue` or `look at this`, it titles the session again from the last four prompts on the fourth, then leaves the title alone. Sessions already named with `-n` or `/rename` are left alone, and a rename stops any re-title. Set the `color` option to `red`, `blue`, `green`, `yellow`, `purple`, `orange`, `pink` or `cyan` to colour named sessions; `default` leaves the colour alone.
+Names each session from its first prompt using Haiku and can give it a prompt bar colour, so it is easy to find with `claude -r` after a crash. When the first prompt is short, such as `continue` or `look at this`, it titles the session again from the last four prompts on the fourth. Every eighth prompt it checks the title against the last four prompts and renames the session only when the work has moved to a different task; small shifts keep the title. Sessions already named with `-n` or `/rename` are left alone, and a rename stops any re-title. Set the `color` option to `red`, `blue`, `green`, `yellow`, `purple`, `orange`, `pink` or `cyan` to colour named sessions; `default` leaves the colour alone.
 
 ```text
 > fix the flaky retry test in the upload worker

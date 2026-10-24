@@ -90,6 +90,37 @@ describe('auto-session-name', () => {
     expect(asks).toBe(1)
   })
 
+  it('should rename on the eighth prompt when the work has moved on', async ($, on) => {
+    on('classic.UserPromptSubmit', () => ({}))
+    const asked: string[] = []
+    on('model.complete', (_, e) => {
+      asked.push(e.prompt)
+      return { value: { isAnswered: true, text: asked.length === 1 ? 'Fix login redirect bug' : 'Add upload retry backoff', usage } }
+    })
+    const titles: (string | undefined)[] = []
+    for (let i = 0; i < 9; i++) {
+      const prompt = i < 4 ? 'the login page redirects in a loop after sign-in' : 'now make the upload worker retry with backoff'
+      const result = await $.classic.UserPromptSubmit({ prompt, source: 'user', session_title: titles.findLast(Boolean) })
+      titles.push(result.sessionTitle)
+    }
+    expect(titles).toEqual(['Fix login redirect bug', undefined, undefined, undefined, undefined, undefined, undefined, 'Add upload retry backoff', undefined])
+    expect(asked).toHaveLength(2)
+    expect(asked[1]).toContain('The current title is "Fix login redirect bug"')
+  })
+
+  it('should keep the title when the check finds it still fits', async ($, on) => {
+    on('classic.UserPromptSubmit', () => ({}))
+    let asks = 0
+    on('model.complete', () => { asks++; return { value: { isAnswered: true, text: asks === 1 ? 'Fix login redirect bug' : 'KEEP', usage } } })
+    const titles: (string | undefined)[] = []
+    for (let i = 0; i < 8; i++) {
+      const result = await $.classic.UserPromptSubmit({ prompt: 'the login page redirects in a loop after sign-in', source: 'user', session_title: titles.findLast(Boolean) })
+      titles.push(result.sessionTitle)
+    }
+    expect(titles.filter(Boolean)).toEqual(['Fix login redirect bug'])
+    expect(asks).toBe(2)
+  })
+
   it('should stop re-titling once the session is renamed', async ($, on) => {
     on('classic.UserPromptSubmit', () => ({}))
     let asks = 0
