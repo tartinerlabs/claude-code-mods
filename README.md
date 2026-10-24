@@ -93,7 +93,7 @@ PR #42 checks passed, ready to /merge                        ← toast
 
 ### 📝 release-notes
 
-In an Xcode project, draws the app's `MARKETING_VERSION` and build above the prompt with the commits since the last release. When a turn, or anything between sessions, changes the version, Haiku drafts App Store "What's New" notes from those commits and a toast says where they went. With fastlane they go to `fastlane/metadata/<locale>/release_notes.txt` for the `default` locale, else `en-US`, else the first. Without fastlane they become a `## <version>` section in `CHANGELOG.md`, and a section that is already there is left alone. The last release is the newest tag, or the commit that set the previous version when the repository has no tags. The first time it sees a repository it only records the version. `/release-notes` drafts the notes again, replacing what is there.
+In an Xcode project, draws the app's `MARKETING_VERSION` and build above the prompt with the commits since the last release. When a turn, or anything between sessions, changes the version, Haiku drafts App Store "What's New" notes from those commits and a toast says where they went. With fastlane they go to `fastlane/metadata/<locale>/release_notes.txt` for the `default` locale, else `en-US`, else the first. Without fastlane they become a `## <version>` section in `CHANGELOG.md`, and a section that is already there is left alone. The last release is the newest tag, or the commit that set the previous version when the repository has no tags. The first time it sees a repository it only records the version. `/draft-release-notes` drafts the notes again, replacing what is there.
 
 ```text
 📝 v2.4.0 (41)  12 commits since v2.3.0  notes drafted      ← band

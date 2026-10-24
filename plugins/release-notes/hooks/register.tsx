@@ -215,7 +215,7 @@ async function check($: EngineInterface) {
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const result = await next(e)
-    await $.command.register({ name: 'release-notes', description: 'Draft App Store release notes for the current version from the commits since the last release' })
+    await $.command.register({ name: 'draft-release-notes', description: 'Draft App Store release notes for the current version from the commits since the last release' })
     // On a timer, so neither the session's start nor a turn's end waits on the model.
     $.clock.after(0, () => check($))
 
@@ -230,7 +230,7 @@ export const register: Register = on => {
     return result
   })
 
-  on('command.run', { command: 'release-notes' }, async $ => {
+  on('command.run', { command: 'draft-release-notes' }, async $ => {
     const found = await scan($)
     await update($, current, () => found?.release ?? null)
     if (!found) return { text: 'No Xcode project with a MARKETING_VERSION in this repository.' }
@@ -253,7 +253,7 @@ export const register: Register = on => {
         <Box flexDirection="row" paddingX={1} gap={2}>
           <Text dimColor>📝 v{release.version}{release.build ? ` (${release.build})` : ''}</Text>
           <Text dimColor>{release.commits} commits since {release.since ?? 'the start'}</Text>
-          {release.isDrafted ? <Text color="green">notes drafted</Text> : <Text color="gray">notes not drafted · /release-notes</Text>}
+          {release.isDrafted ? <Text color="green">notes drafted</Text> : <Text color="gray">notes not drafted · /draft-release-notes</Text>}
         </Box>
         {below}
       </Box>
