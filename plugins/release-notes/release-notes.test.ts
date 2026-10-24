@@ -39,7 +39,7 @@ function fake(on: Parameters<Parameters<typeof it>[1]>[1], repo: Repo) {
   const store = { ...repo.store }
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('turn.complete', () => ({ text: '' }))
-  on('command.register', () => ({ value: { command: 'release-notes' } }))
+  on('command.register', () => ({ value: { command: 'draft-release-notes' } }))
   on('ui.toast', ($, e) => (toasts.push(e.text), { value: undefined }))
   on('ui.render', ($, e) => $.ui.resolve(e).Text({ children: 'beneath' }))
   on('store.get', ($, e) => ({ value: store[e.key] }))
@@ -138,7 +138,7 @@ describe('release-notes', () => {
   it('should write CHANGELOG.md without fastlane, counting from the previous version bump', async ($, on) => {
     const { ran } = fake(on, { version: '2.4.0', bumps: { b2: '2.4.0', b1: '2.3.0' }, changelog: '# Changelog\n\n## 2.3.0\n\n- Old\n' })
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
-    const result = await $.command.run({ command: 'release-notes', args: '' })
+    const result = await $.command.run({ command: 'draft-release-notes', args: '' })
     expect(result.text).toBe('Release notes for 2.4.0 written to CHANGELOG.md:\n\n- Dark mode\n- Fixed a crash on launch')
     expect(ran).toContain('log --no-merges -n 200 --format=%s --end-of-options b1..HEAD')
   })
@@ -146,7 +146,7 @@ describe('release-notes', () => {
   it('should not write through a link that leads outside the repository', async ($, on) => {
     const { written } = fake(on, { version: '2.4.0', tags: ['v2.3.0'], changelog: '', links: { '/work/CHANGELOG.md': '/Users/me/.zshrc' } })
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
-    const result = await $.command.run({ command: 'release-notes', args: '' })
+    const result = await $.command.run({ command: 'draft-release-notes', args: '' })
     expect(result.text).toBe('Could not draft the release notes: CHANGELOG.md leads outside the repository, so it was left alone.')
     expect(written).toEqual({})
   })
@@ -155,7 +155,7 @@ describe('release-notes', () => {
     it(`should draw the version and whether notes are drafted on ${surface}`, async ($, on) => {
       fake(on, { version: '2.4.0', tags: ['v2.3.0'], changelog: '# Changelog\n\n## 2.4.0\n\n- New\n' })
       await $.session.start({ surface, isInteractive: true, cwd: '/work' })
-      await $.command.run({ command: 'release-notes', args: '' })
+      await $.command.run({ command: 'draft-release-notes', args: '' })
       const ui = await $.ui.mount({ plugin: 'release-notes', surface, component: 'AbovePrompt', props: BAND })
       expect(await ui.find({ type: 'Text', text: '📝 v2.4.0 (41)' })).toBeDefined()
       expect(await ui.find({ type: 'Text', text: '3 commits since v2.3.0' })).toBeDefined()
@@ -168,7 +168,7 @@ describe('release-notes', () => {
   it('should draw nothing outside an Xcode project', async ($, on) => {
     fake(on, { version: '2.4.0', isRepo: false })
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
-    const result = await $.command.run({ command: 'release-notes', args: '' })
+    const result = await $.command.run({ command: 'draft-release-notes', args: '' })
     expect(result.text).toBe('No Xcode project with a MARKETING_VERSION in this repository.')
     const ui = await $.ui.mount({ plugin: 'release-notes', surface: 'terminal', component: 'AbovePrompt', props: BAND })
     expect(await ui.find({ type: 'Text', text: 'beneath' })).toBeDefined()
