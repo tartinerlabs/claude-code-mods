@@ -32,11 +32,6 @@
       "description": "The 5-hour and weekly usage limits above the prompt, coloured by use, with reset countdowns and toasts at 80% and 95%."
     },
     {
-      "name": "pr-pilot",
-      "source": "./plugins/pr-pilot",
-      "description": "The current branch's pull request above the prompt, with its checks and whether it can merge, toasts when checks finish, and /merge for single PRs and gh-stack stacks."
-    },
-    {
       "name": "smart-compact",
       "source": "./plugins/smart-compact",
       "description": "Compacts between turns when the context is full enough, sooner after a commit, PR, approved plan or finished todo list, or when the prompt cache is about to go cold or the 5-hour limit runs low."
@@ -54,7 +49,7 @@
     {
       "name": "git-status",
       "source": "./plugins/git-status",
-      "description": "The branch and working tree on the status line: ahead and behind, staged, modified and untracked files, stashes, and a rebase or merge in progress."
+      "description": "The branch and working tree on the status line, and the branch's pull request above the prompt with its checks, toasts when checks finish, and /merge for single PRs and gh-stack stacks."
     }
   ]
 }

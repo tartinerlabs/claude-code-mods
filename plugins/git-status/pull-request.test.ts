@@ -99,7 +99,7 @@ describe('parseStack', () => {
   })
 })
 
-describe('pr-pilot', () => {
+describe('git-status pull request', () => {
   for (const surface of ['terminal', 'desktop'] as const) {
     it(`should show the layer's place in its stack on ${surface}`, async ($, on) => {
       on('session.start', ($, e) => ({ cwd: e.cwd }))
@@ -108,7 +108,7 @@ describe('pr-pilot', () => {
       on('ui.render', ($, e) => $.ui.resolve(e).Box({}))
 
       await $.session.start({ surface, isInteractive: true, cwd: '/work' })
-      const ui = await $.ui.mount({ plugin: 'pr-pilot', surface, component: 'AbovePrompt', props: BAND })
+      const ui = await $.ui.mount({ plugin: 'git-status', surface, component: 'AbovePrompt', props: BAND })
       expect(await ui.find({ type: 'Text', text: '📚 stack 2/3' })).toBeDefined()
       await ui.unmount()
     })
@@ -180,7 +180,7 @@ describe('pr-pilot', () => {
       on('ui.render', ($, e) => $.ui.resolve(e).Text({ children: 'beneath' }))
 
       await $.session.start({ surface, isInteractive: true, cwd: '/work' })
-      const ui = await $.ui.mount({ plugin: 'pr-pilot', surface, component: 'AbovePrompt', props: BAND })
+      const ui = await $.ui.mount({ plugin: 'git-status', surface, component: 'AbovePrompt', props: BAND })
       expect(await ui.find({ type: 'Text', text: '⏳ 1/2 checks', props: { color: 'yellow' } })).toBeDefined()
       expect(await ui.find({ type: 'Text', text: 'beneath' })).toBeDefined()
 
@@ -203,7 +203,7 @@ describe('pr-pilot', () => {
     on('ui.render', ($, e) => $.ui.resolve(e).Text({ children: 'beneath' }))
 
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
-    const ui = await $.ui.mount({ plugin: 'pr-pilot', surface: 'terminal', component: 'AbovePrompt', props: BAND })
+    const ui = await $.ui.mount({ plugin: 'git-status', surface: 'terminal', component: 'AbovePrompt', props: BAND })
     expect(await ui.find({ type: 'Text', text: 'beneath' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: '🔀 PR #42' })).toBeUndefined()
   })
@@ -233,7 +233,7 @@ describe('pr-pilot', () => {
     on('ui.render', ($, e) => $.ui.resolve(e).Text({ children: 'beneath' }))
 
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
-    const ui = await $.ui.mount({ plugin: 'pr-pilot', surface: 'terminal', component: 'AbovePrompt', props: BAND })
+    const ui = await $.ui.mount({ plugin: 'git-status', surface: 'terminal', component: 'AbovePrompt', props: BAND })
     expect(await ui.find({ type: 'Text', text: 'ready · /merge' })).toBeDefined()
 
     await $.command.run({ command: 'merge', args: '' })

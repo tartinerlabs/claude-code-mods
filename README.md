@@ -24,9 +24,8 @@
 | ⏸ | [auto-resume](#-auto-resume) | Status line, toast | Picks a turn back up once a usage limit resets |
 | 🏷 | [auto-session-name](#-auto-session-name) | Session title | Names each session from its first prompt and keeps the name current as the work moves on |
 | ⏱ | [cache-clock](#-cache-clock) | Band above the prompt | Counts down to the prompt cache going cold |
-| 🌿 | [git-status](#-git-status) | Status line, toast | Shows the branch and working tree: ahead and behind, changes, stashes and a rebase or merge in progress |
+| 🌿 | [git-status](#-git-status) | Status line, band above the prompt, toasts | Shows the branch, working tree and pull request, and merges the PR with `/merge` |
 | 📊 | [limit-watch](#-limit-watch) | Band above the prompt, toasts | Shows the 5-hour and weekly usage limits and the session's cost |
-| 🛫 | [pr-pilot](#-pr-pilot) | Band above the prompt, toasts | Shows the branch's PR checks and merges it with `/merge` |
 | 📝 | [release-notes](#-release-notes) | Band above the prompt, toast | Drafts App Store release notes for Xcode projects when the version is bumped |
 | 📱 | [resource-watch](#-resource-watch) | Band above the prompt, toast | Shows which session is using each simulator, Claude Design project or the Xcode app, and messages the other session on a clash |
 | 🗜 | [smart-compact](#-smart-compact) | Toast | Compacts between turns, sooner at checkpoints or when the cache is cooling |
@@ -71,11 +70,18 @@ Draws a countdown above the prompt to when the prompt cache goes cold, with the 
 
 Pins the branch and working tree to the status line, refreshed after every tool call and every 15 seconds: commits ahead (`↑`) and behind (`↓`) the upstream as of the last fetch, staged (`+`), modified (`!`) and untracked (`?`) files, conflicts (`✖`), stashes (`⚑`), and a rebase, merge, cherry-pick, revert or bisect in progress. Toasts when an operation stops on conflicts. It never fetches.
 
+Also draws the current branch's open pull request above the prompt with its checks and whether it can merge, refreshed each minute and after every turn. Toasts when a run of checks finishes. `/merge` merges it with `gh` and deletes the branch, but only once every check has passed and nothing blocks it. On a [gh-stack](https://github.com/github/gh-stack) layer the band shows its place in the stack, and `/merge` merges the whole stack with `gh stack merge` once every unmerged layer has passed its checks and has no unpushed commits, then switches to the trunk and deletes every layer's branch, local and remote, once all of them have merged. Set the `method` option to `merge` (default), `squash` or `rebase`. Needs the [GitHub CLI](https://cli.github.com), signed in.
+
 ```text
 🌿 main ✓                                                    ← status line, clean
 🌿 feat/x ↑2 ↓1 +3 !1 ?2 ⚑1                                  ← work in progress
 🌿 1a2b3c4 ✖2 REBASING                                       ← stopped mid-rebase
 Rebasing stopped on 2 conflicts                              ← toast
+🔀 PR #42  ⏳ 3/5 checks  waiting                            ← band
+PR #42  ✗ 1 failing: SonarCloud  blocked                     ← red
+PR #42  ✓ 5/5 checks  ready · /merge                         ← green
+PR #42  stack 2/3  ✓ 5/5 checks  ready · /merge              ← a gh-stack layer
+PR #42 checks passed, ready to /merge                        ← toast
 ```
 
 <sub>📁 [`plugins/git-status`](plugins/git-status)</sub>
@@ -90,20 +96,6 @@ Draws the 5-hour and weekly usage limits above the prompt with live reset countd
 ```
 
 <sub>📁 [`plugins/limit-watch`](plugins/limit-watch)</sub>
-
-### 🛫 pr-pilot
-
-Draws the current branch's open pull request above the prompt with its checks and whether it can merge, refreshed each minute and after every turn. Toasts when a run of checks finishes. `/merge` merges it with `gh` and deletes the branch, but only once every check has passed and nothing blocks it. On a [gh-stack](https://github.com/github/gh-stack) layer the band shows its place in the stack, and `/merge` merges the whole stack with `gh stack merge` once every unmerged layer has passed its checks and has no unpushed commits, then switches to the trunk and deletes every layer's branch, local and remote, once all of them have merged. Set the `method` option to `merge` (default), `squash` or `rebase`. Needs the [GitHub CLI](https://cli.github.com), signed in.
-
-```text
-🔀 PR #42  ⏳ 3/5 checks  waiting                            ← band
-PR #42  ✗ 1 failing: SonarCloud  blocked                     ← red
-PR #42  ✓ 5/5 checks  ready · /merge                         ← green
-PR #42  stack 2/3  ✓ 5/5 checks  ready · /merge              ← a gh-stack layer
-PR #42 checks passed, ready to /merge                        ← toast
-```
-
-<sub>📁 [`plugins/pr-pilot`](plugins/pr-pilot)</sub>
 
 ### 📝 release-notes
 
