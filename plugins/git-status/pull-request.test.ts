@@ -43,6 +43,27 @@ describe('tally', () => {
     ).toEqual({ total: 5, passed: 3, pending: 1, failed: ['SonarCloud'] })
   })
 
+  it('should ignore a workflow run cancelled by a newer one', () => {
+    const job = (run: number, name: string, conclusion: string, workflowName = 'CI') => ({
+      __typename: 'CheckRun',
+      name,
+      status: 'COMPLETED',
+      conclusion,
+      workflowName,
+      detailsUrl: `https://github.com/o/r/actions/runs/${run}/job/${run}1`,
+    })
+    expect(
+      tally([
+        job(100, 'discover', 'CANCELLED'),
+        job(100, '${{ matrix.mod }} (${{ matrix.claude-code }})', 'CANCELLED'),
+        job(101, 'discover', 'SUCCESS'),
+        job(101, 'git-status (stable)', 'SUCCESS'),
+        job(102, 'Analyze', 'CANCELLED', 'CodeQL'),
+        GREEN[1]!,
+      ]),
+    ).toEqual({ total: 4, passed: 3, pending: 0, failed: ['Analyze'] })
+  })
+
   it('should strip terminal escapes from check names', () => {
     const rollup = [{ __typename: 'CheckRun', name: 'e2e\u001b]52;c;aGk=\u0007\u001b[2J', status: 'COMPLETED', conclusion: 'FAILURE' }]
     expect(tally(rollup).failed).toEqual(['e2e]52;c;aGk=[2J'])
