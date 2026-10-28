@@ -50,6 +50,11 @@
       "name": "resource-watch",
       "source": "./plugins/resource-watch",
       "description": "Which session is using each booted Apple simulator, Claude Design project and the Xcode app, above the prompt, messaging the other session when two want the same one."
+    },
+    {
+      "name": "git-status",
+      "source": "./plugins/git-status",
+      "description": "The branch and working tree on the status line: ahead and behind, staged, modified and untracked files, stashes, and a rebase or merge in progress."
     }
   ]
 }
