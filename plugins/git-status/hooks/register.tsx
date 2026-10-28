@@ -101,10 +101,24 @@ const current = atom({ plugin: 'git-status', key: 'pr' } as const, null as Pr | 
 /** Drops control characters, so a check name or gh output cannot carry terminal escapes. */
 export const clean = (text: string) => text.replace(/[\u0000-\u001f\u007f-\u009f]/g, '')
 
-type Rollup = { __typename?: string; name?: string; context?: string; status?: string; conclusion?: string; state?: string }
+type Rollup = { __typename?: string; name?: string; context?: string; status?: string; conclusion?: string; state?: string; workflowName?: string; detailsUrl?: string }
+
+const RUN_ID = /\/actions\/runs\/(\d+)\//
+
+/** Drops check runs from a workflow's older runs, such as one cancelled when a push started a newer run. */
+export function latestRuns(rollup: readonly Rollup[]): Rollup[] {
+  const runOf = (check: Rollup) => Number(RUN_ID.exec(check.detailsUrl ?? '')?.[1] ?? 0)
+  const newest = new Map<string, number>()
+  for (const check of rollup) {
+    if (check.workflowName) newest.set(check.workflowName, Math.max(newest.get(check.workflowName) ?? 0, runOf(check)))
+  }
+
+  return rollup.filter(check => !check.workflowName || runOf(check) === newest.get(check.workflowName))
+}
 
 /** Tallies `statusCheckRollup`, which mixes check runs (`status`, `conclusion`) and commit statuses (`state`). */
-export function tally(rollup: readonly Rollup[]): Checks {
+export function tally(all: readonly Rollup[]): Checks {
+  const rollup = latestRuns(all)
   const checks: Checks = { total: rollup.length, passed: 0, pending: 0, failed: [] }
   for (const check of rollup) {
     const result = check.__typename === 'StatusContext' ? check.state : check.status === 'COMPLETED' ? check.conclusion : 'PENDING'
