@@ -2,9 +2,23 @@
   "name": "git-status",
   "displayName": "Git Status",
   "version": "0.16.0",
-  "description": "Shows the branch and working tree on the status line: ahead and behind, staged, modified and untracked files, stashes, and a rebase or merge in progress.",
+  "description": "Shows the branch and working tree on the status line, and the branch's pull request above the prompt with its checks, toasts when checks finish or a rebase stops on conflicts, and merges the PR, or its whole gh-stack stack, with /merge.",
   "author": {
     "name": "Tartiner Labs",
     "url": "https://tartinerlabs.com"
+  },
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "method": {
+      "type": "string",
+      "title": "Merge method",
+      "description": "How /merge merges the pull request.",
+      "options": [
+        "merge",
+        "squash",
+        "rebase"
+      ],
+      "default": "merge"
+    }
   }
 }

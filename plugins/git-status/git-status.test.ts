@@ -52,6 +52,8 @@ describe('git-status', () => {
     let status = DIRTY
     on('session.start', ($, e) => ({ cwd: e.cwd }))
     on('process.run', ($, e) => {
+      // No gh here, so the pull request band stays empty.
+      if (e.argv[0] !== 'git') return run('', 1)
       const args = e.argv.slice(2)
       if (args[0] === 'status') return run(status)
       if (args[0] === 'rev-list') return run('', 128)
