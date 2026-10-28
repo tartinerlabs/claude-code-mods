@@ -24,6 +24,7 @@
 | ⏸ | [auto-resume](#-auto-resume) | Status line, toast | Picks a turn back up once a usage limit resets |
 | 🏷 | [auto-session-name](#-auto-session-name) | Session title | Names each session from its first prompt and keeps the name current as the work moves on |
 | ⏱ | [cache-clock](#-cache-clock) | Band above the prompt | Counts down to the prompt cache going cold |
+| 🌿 | [git-status](#-git-status) | Status line, toast | Shows the branch and working tree: ahead and behind, changes, stashes and a rebase or merge in progress |
 | 📊 | [limit-watch](#-limit-watch) | Band above the prompt, toasts | Shows the 5-hour and weekly usage limits and the session's cost |
 | 🛫 | [pr-pilot](#-pr-pilot) | Band above the prompt, toasts | Shows the branch's PR checks and merges it with `/merge` |
 | 📝 | [release-notes](#-release-notes) | Band above the prompt, toast | Drafts App Store release notes for Xcode projects when the version is bumped |
@@ -65,6 +66,19 @@ Draws a countdown above the prompt to when the prompt cache goes cold, with the 
 ```
 
 <sub>📁 [`plugins/cache-clock`](plugins/cache-clock)</sub>
+
+### 🌿 git-status
+
+Pins the branch and working tree to the status line, refreshed after every tool call and every 15 seconds: commits ahead (`↑`) and behind (`↓`) the upstream as of the last fetch, staged (`+`), modified (`!`) and untracked (`?`) files, conflicts (`✖`), stashes (`⚑`), and a rebase, merge, cherry-pick, revert or bisect in progress. Toasts when an operation stops on conflicts. It never fetches.
+
+```text
+🌿 main ✓                                                    ← status line, clean
+🌿 feat/x ↑2 ↓1 +3 !1 ?2 ⚑1                                  ← work in progress
+🌿 1a2b3c4 ✖2 REBASING                                       ← stopped mid-rebase
+Rebasing stopped on 2 conflicts                              ← toast
+```
+
+<sub>📁 [`plugins/git-status`](plugins/git-status)</sub>
 
 ### 📊 limit-watch
 

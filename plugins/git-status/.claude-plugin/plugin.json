@@ -1,0 +1,10 @@
+{
+  "name": "git-status",
+  "displayName": "Git Status",
+  "version": "0.16.0",
+  "description": "Shows the branch and working tree on the status line: ahead and behind, staged, modified and untracked files, stashes, and a rebase or merge in progress.",
+  "author": {
+    "name": "Tartiner Labs",
+    "url": "https://tartinerlabs.com"
+  }
+}
