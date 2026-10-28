@@ -20,6 +20,6 @@ export type Pr = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'pr-pilot': { pr: Pr | null }
+    'git-status': { pr: Pr | null }
   }
 }

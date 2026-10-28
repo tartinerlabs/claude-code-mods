@@ -43,6 +43,27 @@ describe('tally', () => {
     ).toEqual({ total: 5, passed: 3, pending: 1, failed: ['SonarCloud'] })
   })
 
+  it('should ignore a workflow run cancelled by a newer one', () => {
+    const job = (run: number, name: string, conclusion: string, workflowName = 'CI') => ({
+      __typename: 'CheckRun',
+      name,
+      status: 'COMPLETED',
+      conclusion,
+      workflowName,
+      detailsUrl: `https://github.com/o/r/actions/runs/${run}/job/${run}1`,
+    })
+    expect(
+      tally([
+        job(100, 'discover', 'CANCELLED'),
+        job(100, '${{ matrix.mod }} (${{ matrix.claude-code }})', 'CANCELLED'),
+        job(101, 'discover', 'SUCCESS'),
+        job(101, 'git-status (stable)', 'SUCCESS'),
+        job(102, 'Analyze', 'CANCELLED', 'CodeQL'),
+        GREEN[1]!,
+      ]),
+    ).toEqual({ total: 4, passed: 3, pending: 0, failed: ['Analyze'] })
+  })
+
   it('should strip terminal escapes from check names', () => {
     const rollup = [{ __typename: 'CheckRun', name: 'e2e\u001b]52;c;aGk=\u0007\u001b[2J', status: 'COMPLETED', conclusion: 'FAILURE' }]
     expect(tally(rollup).failed).toEqual(['e2e]52;c;aGk=[2J'])
@@ -99,7 +120,7 @@ describe('parseStack', () => {
   })
 })
 
-describe('pr-pilot', () => {
+describe('git-status pull request', () => {
   for (const surface of ['terminal', 'desktop'] as const) {
     it(`should show the layer's place in its stack on ${surface}`, async ($, on) => {
       on('session.start', ($, e) => ({ cwd: e.cwd }))
@@ -108,7 +129,7 @@ describe('pr-pilot', () => {
       on('ui.render', ($, e) => $.ui.resolve(e).Box({}))
 
       await $.session.start({ surface, isInteractive: true, cwd: '/work' })
-      const ui = await $.ui.mount({ plugin: 'pr-pilot', surface, component: 'AbovePrompt', props: BAND })
+      const ui = await $.ui.mount({ plugin: 'git-status', surface, component: 'AbovePrompt', props: BAND })
       expect(await ui.find({ type: 'Text', text: '📚 stack 2/3' })).toBeDefined()
       await ui.unmount()
     })
@@ -180,7 +201,7 @@ describe('pr-pilot', () => {
       on('ui.render', ($, e) => $.ui.resolve(e).Text({ children: 'beneath' }))
 
       await $.session.start({ surface, isInteractive: true, cwd: '/work' })
-      const ui = await $.ui.mount({ plugin: 'pr-pilot', surface, component: 'AbovePrompt', props: BAND })
+      const ui = await $.ui.mount({ plugin: 'git-status', surface, component: 'AbovePrompt', props: BAND })
       expect(await ui.find({ type: 'Text', text: '⏳ 1/2 checks', props: { color: 'yellow' } })).toBeDefined()
       expect(await ui.find({ type: 'Text', text: 'beneath' })).toBeDefined()
 
@@ -203,7 +224,7 @@ describe('pr-pilot', () => {
     on('ui.render', ($, e) => $.ui.resolve(e).Text({ children: 'beneath' }))
 
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
-    const ui = await $.ui.mount({ plugin: 'pr-pilot', surface: 'terminal', component: 'AbovePrompt', props: BAND })
+    const ui = await $.ui.mount({ plugin: 'git-status', surface: 'terminal', component: 'AbovePrompt', props: BAND })
     expect(await ui.find({ type: 'Text', text: 'beneath' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: '🔀 PR #42' })).toBeUndefined()
   })
@@ -233,7 +254,7 @@ describe('pr-pilot', () => {
     on('ui.render', ($, e) => $.ui.resolve(e).Text({ children: 'beneath' }))
 
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
-    const ui = await $.ui.mount({ plugin: 'pr-pilot', surface: 'terminal', component: 'AbovePrompt', props: BAND })
+    const ui = await $.ui.mount({ plugin: 'git-status', surface: 'terminal', component: 'AbovePrompt', props: BAND })
     expect(await ui.find({ type: 'Text', text: 'ready · /merge' })).toBeDefined()
 
     await $.command.run({ command: 'merge', args: '' })

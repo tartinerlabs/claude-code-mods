@@ -1,21 +1,124 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register } from 'claude-code'
+import type { EngineInterface, Register, Timer } from 'claude-code'
 
 import type { Checks, Pr, Stack } from '../types'
+
+// Catches edits made outside Claude Code, between tool calls.
+const POLL_MS = 15_000
+// --no-optional-locks keeps the poll from taking index.lock while the person runs git themselves.
+const GIT = ['git', '--no-optional-locks']
+// Marker files git leaves in its directory while an operation is stopped, first match wins.
+const OPERATIONS = [
+  ['rebase-merge', 'REBASING'],
+  ['rebase-apply', 'REBASING'],
+  ['MERGE_HEAD', 'MERGING'],
+  ['CHERRY_PICK_HEAD', 'CHERRY-PICKING'],
+  ['REVERT_HEAD', 'REVERTING'],
+  ['BISECT_LOG', 'BISECTING'],
+] as const
+
+export type Tree = {
+  branch: string
+  ahead: number
+  behind: number
+  staged: number
+  modified: number
+  untracked: number
+  conflicts: number
+}
+
+// The module's own state: a reload drops it, and session.start starts it again.
+let timer: Timer | undefined
+let running: Promise<void> | undefined
+let isQueued = false
+let lastConflicts = 0
+
+async function git($: EngineInterface, args: string[]) {
+  const ran = await $.process.run([...GIT, ...args]).catch(() => null)
+
+  return ran?.exitCode === 0 ? ran.stdout : null
+}
+
+async function operation($: EngineInterface) {
+  const paths = await git($, ['rev-parse', '--path-format=absolute', ...OPERATIONS.flatMap(([marker]) => ['--git-path', marker])])
+  if (paths === null) return undefined
+  const lines = paths.trim().split('\n')
+  for (const [i, [, label]] of OPERATIONS.entries()) {
+    if (await $.fs.exists(lines[i]!).catch(() => false)) return label
+  }
+
+  return undefined
+}
+
+async function stashes($: EngineInterface) {
+  // Fails when there is no stash at all.
+  const count = await git($, ['rev-list', '--walk-reflogs', '--count', 'refs/stash'])
+
+  return count === null ? 0 : Number(count.trim()) || 0
+}
+
+async function show($: EngineInterface) {
+  const status = await git($, ['status', '--porcelain=v2', '--branch'])
+  if (status === null) {
+    $.ui.status(undefined)
+    return
+  }
+  const tree = parse(status)
+  const [stash, op] = await Promise.all([stashes($), operation($)])
+  $.ui.status(format(tree, stash, op))
+
+  if (tree.conflicts > 0 && lastConflicts === 0) {
+    $.ui.toast(`${op ? `${op[0]}${op.slice(1).toLowerCase()} stopped on` : 'Git has'} ${plural(tree.conflicts, 'conflict')}`)
+  }
+  lastConflicts = tree.conflicts
+}
+
+/** Runs one refresh at a time, and one more after it when asked meanwhile. */
+function refreshTree($: EngineInterface) {
+  if (running) {
+    isQueued = true
+    return running
+  }
+  running = show($)
+    .catch(() => $.ui.status(undefined))
+    .finally(() => {
+      running = undefined
+      if (isQueued) {
+        isQueued = false
+        void refreshTree($)
+      }
+    })
+
+  return running
+}
 
 const FIELDS = 'number,url,headRefOid,state,isDraft,mergeable,mergeStateStatus,statusCheckRollup'
 const FAILED = ['FAILURE', 'ERROR', 'TIMED_OUT', 'CANCELLED', 'ACTION_REQUIRED', 'STARTUP_FAILURE']
 
 // Held by the host, so a hot reload keeps the band and does not toast the same result twice.
-const current = atom({ plugin: 'pr-pilot', key: 'pr' } as const, null as Pr | null)
+const current = atom({ plugin: 'git-status', key: 'pr' } as const, null as Pr | null)
 
 /** Drops control characters, so a check name or gh output cannot carry terminal escapes. */
 export const clean = (text: string) => text.replace(/[\u0000-\u001f\u007f-\u009f]/g, '')
 
-type Rollup = { __typename?: string; name?: string; context?: string; status?: string; conclusion?: string; state?: string }
+type Rollup = { __typename?: string; name?: string; context?: string; status?: string; conclusion?: string; state?: string; workflowName?: string; detailsUrl?: string }
+
+const RUN_ID = /\/actions\/runs\/(\d+)\//
+
+/** Drops check runs from a workflow's older runs, such as one cancelled when a push started a newer run. */
+export function latestRuns(rollup: readonly Rollup[]): Rollup[] {
+  const runOf = (check: Rollup) => Number(RUN_ID.exec(check.detailsUrl ?? '')?.[1] ?? 0)
+  const newest = new Map<string, number>()
+  for (const check of rollup) {
+    if (check.workflowName) newest.set(check.workflowName, Math.max(newest.get(check.workflowName) ?? 0, runOf(check)))
+  }
+
+  return rollup.filter(check => !check.workflowName || runOf(check) === newest.get(check.workflowName))
+}
 
 /** Tallies `statusCheckRollup`, which mixes check runs (`status`, `conclusion`) and commit statuses (`state`). */
-export function tally(rollup: readonly Rollup[]): Checks {
+export function tally(all: readonly Rollup[]): Checks {
+  const rollup = latestRuns(all)
   const checks: Checks = { total: rollup.length, passed: 0, pending: 0, failed: [] }
   for (const check of rollup) {
     const result = check.__typename === 'StatusContext' ? check.state : check.status === 'COMPLETED' ? check.conclusion : 'PENDING'
@@ -95,7 +198,7 @@ async function fetchPr($: EngineInterface, number?: number): Promise<Pr | null> 
 // Bumped by every refresh and by a merge, so a slower, older refresh cannot overwrite a newer result.
 let latest = 0
 
-async function refresh($: EngineInterface) {
+async function refreshPr($: EngineInterface) {
   const id = ++latest
   const pr = await fetchPr($)
   const stack = pr && (await fetchStack($))
@@ -173,28 +276,39 @@ export const register: Register = (on, options) => {
 
   on('session.start', async ($, e, next) => {
     const result = await next(e)
+    timer?.cancel()
+    timer = $.clock.every(POLL_MS, () => void refreshTree($))
+    await refreshTree($)
     await $.command.register({ name: 'merge', description: "Merge this branch's pull request, or its whole stack, once checks pass" })
-    await refresh($)
-    $.clock.every(60_000, () => refresh($))
+    await refreshPr($)
+    $.clock.every(60_000, () => refreshPr($))
 
     return result
   })
 
+  // Any tool may have changed the tree: Bash, Edit, Write, or an MCP tool.
+  on('tool.call', async ($, e, next) => {
+    const result = await next(e)
+    await refreshTree($)
+
+    return result
+  }).catch(($, e, next) => next(e))
+
   // A turn may have pushed or opened a pull request.
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
-    if (e.agentId === undefined) void refresh($)
+    if (e.agentId === undefined) void refreshPr($)
 
     return result
   })
 
   on('command.run', { command: 'merge' }, async $ => {
-    await refresh($)
+    await refreshPr($)
     const pr = await read($, current)
     if (!pr) return { text: 'No open pull request for this branch.' }
     if (pr.stack) {
       const text = await mergeStack($, pr, pr.stack, method)
-      await refresh($)
+      await refreshPr($)
 
       return { text }
     }
@@ -211,7 +325,7 @@ export const register: Register = (on, options) => {
       latest += 1
       await update($, current, () => null)
     } else {
-      await refresh($)
+      await refreshPr($)
     }
 
     return { text: ran.exitCode === 0 ? `Merged PR #${pr.number}.` : `gh pr merge failed: ${clean((ran.stderr || ran.stdout).trim())}` }
@@ -242,4 +356,47 @@ export const register: Register = (on, options) => {
       </Box>
     )
   })
+}
+
+/** Reads `git status --porcelain=v2 --branch`. */
+export function parse(status: string): Tree {
+  const tree: Tree = { branch: '', ahead: 0, behind: 0, staged: 0, modified: 0, untracked: 0, conflicts: 0 }
+  let oid = ''
+  for (const line of status.split('\n')) {
+    if (line.startsWith('# branch.oid ')) oid = line.slice(13)
+    else if (line.startsWith('# branch.head ')) tree.branch = line.slice(14)
+    else if (line.startsWith('# branch.ab ')) {
+      const [ahead, behind] = line.slice(12).split(' ')
+      tree.ahead = Number(ahead) || 0
+      tree.behind = Math.abs(Number(behind) || 0)
+    } else if (line.startsWith('1 ') || line.startsWith('2 ')) {
+      if (line[2] !== '.') tree.staged++
+      if (line[3] !== '.') tree.modified++
+    } else if (line.startsWith('u ')) tree.conflicts++
+    else if (line.startsWith('? ')) tree.untracked++
+  }
+  // A detached HEAD reads as its short commit.
+  if (tree.branch === '(detached)') tree.branch = oid === '(initial)' ? oid : oid.slice(0, 7)
+
+  return tree
+}
+
+/** The status line: `🌿 main ↑2 ↓1 +3 !1 ?2 ✖1 ⚑1 REBASING`, or `✓` when there is nothing to show. */
+export function format(tree: Tree, stash = 0, operation?: string) {
+  const parts = [
+    tree.ahead && `↑${tree.ahead}`,
+    tree.behind && `↓${tree.behind}`,
+    tree.staged && `+${tree.staged}`,
+    tree.modified && `!${tree.modified}`,
+    tree.untracked && `?${tree.untracked}`,
+    tree.conflicts && `✖${tree.conflicts}`,
+    stash && `⚑${stash}`,
+    operation,
+  ].filter(Boolean)
+
+  return `🌿 ${tree.branch} ${parts.length ? parts.join(' ') : '✓'}`
+}
+
+function plural(n: number, word: string) {
+  return `${n} ${word}${n === 1 ? '' : 's'}`
 }
