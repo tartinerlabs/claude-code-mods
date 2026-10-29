@@ -18,8 +18,22 @@ export type Pr = {
   stack?: Stack
 }
 
+/** The working tree, as `git status --porcelain=v2 --branch` last reported it. */
+export type Tree = {
+  branch: string
+  ahead: number
+  behind: number
+  staged: number
+  modified: number
+  untracked: number
+  conflicts: number
+  stash: number
+  /** A rebase, merge, cherry-pick, revert or bisect stopped partway, as `REBASING` and so on. */
+  operation?: string
+}
+
 declare module 'claude-code' {
   interface PluginState {
-    'git-status': { pr: Pr | null }
+    'git-status': { pr: Pr | null; tree: Tree | null }
   }
 }

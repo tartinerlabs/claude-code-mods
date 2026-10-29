@@ -49,7 +49,7 @@
     {
       "name": "git-status",
       "source": "./plugins/git-status",
-      "description": "The branch and working tree on the status line, and the branch's pull request above the prompt with its checks, toasts when checks finish, and /merge for single PRs and gh-stack stacks."
+      "description": "The branch, working tree and pull request above the prompt, toasts when checks finish, and /merge for single PRs and gh-stack stacks."
     }
   ]
 }

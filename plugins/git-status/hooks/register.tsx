@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, Timer } from 'claude-code'
 
-import type { Checks, Pr, Stack } from '../types'
+import type { Checks, Pr, Stack, Tree } from '../types'
 
 // Catches edits made outside Claude Code, between tool calls.
 const POLL_MS = 15_000
@@ -9,29 +9,22 @@ const POLL_MS = 15_000
 const GIT = ['git', '--no-optional-locks']
 // Marker files git leaves in its directory while an operation is stopped, first match wins.
 const OPERATIONS = [
-  ['rebase-merge', 'REBASING'],
-  ['rebase-apply', 'REBASING'],
-  ['MERGE_HEAD', 'MERGING'],
-  ['CHERRY_PICK_HEAD', 'CHERRY-PICKING'],
-  ['REVERT_HEAD', 'REVERTING'],
-  ['BISECT_LOG', 'BISECTING'],
+  ['rebase-merge', 'rebasing'],
+  ['rebase-apply', 'rebasing'],
+  ['MERGE_HEAD', 'merging'],
+  ['CHERRY_PICK_HEAD', 'cherry-picking'],
+  ['REVERT_HEAD', 'reverting'],
+  ['BISECT_LOG', 'bisecting'],
 ] as const
-
-export type Tree = {
-  branch: string
-  ahead: number
-  behind: number
-  staged: number
-  modified: number
-  untracked: number
-  conflicts: number
-}
 
 // The module's own state: a reload drops it, and session.start starts it again.
 let timer: Timer | undefined
 let running: Promise<void> | undefined
 let isQueued = false
 let lastConflicts = 0
+
+// Held by the host, so a hot reload keeps the band drawn.
+const tree = atom({ plugin: 'git-status', key: 'tree' } as const, null as Tree | null)
 
 async function git($: EngineInterface, args: string[]) {
   const ran = await $.process.run([...GIT, ...args]).catch(() => null)
@@ -60,17 +53,17 @@ async function stashes($: EngineInterface) {
 async function show($: EngineInterface) {
   const status = await git($, ['status', '--porcelain=v2', '--branch'])
   if (status === null) {
-    $.ui.status(undefined)
+    await update($, tree, () => null)
     return
   }
-  const tree = parse(status)
   const [stash, op] = await Promise.all([stashes($), operation($)])
-  $.ui.status(format(tree, stash, op))
+  const now: Tree = { ...parse(status), stash, operation: op }
+  await update($, tree, () => now)
 
-  if (tree.conflicts > 0 && lastConflicts === 0) {
-    $.ui.toast(`${op ? `${op[0]}${op.slice(1).toLowerCase()} stopped on` : 'Git has'} ${plural(tree.conflicts, 'conflict')}`)
+  if (now.conflicts > 0 && lastConflicts === 0) {
+    $.ui.toast(`${op ? `${op[0]!.toUpperCase()}${op.slice(1)} stopped on` : 'Git has'} ${plural(now.conflicts, 'conflict')}`)
   }
-  lastConflicts = tree.conflicts
+  lastConflicts = now.conflicts
 }
 
 /** Runs one refresh at a time, and one more after it when asked meanwhile. */
@@ -80,7 +73,7 @@ function refreshTree($: EngineInterface) {
     return running
   }
   running = show($)
-    .catch(() => $.ui.status(undefined))
+    .catch(() => update($, tree, () => null))
     .finally(() => {
       running = undefined
       if (isQueued) {
@@ -332,25 +325,32 @@ export const register: Register = (on, options) => {
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    const pr = await read($, current)
+    const [git, pr] = await Promise.all([read($, tree), read($, current)])
 
-    if (e.props.hasSurvey || !pr) {
+    if (e.props.hasSurvey || (!git && !pr)) {
       return next(e)
     }
 
     const { Box, Text } = $.ui.resolve(e)
-    const [checks, checksColour] = checksEntry(pr.checks)
-    const [merge, mergeColour] = mergeEntry(pr)
     // Stack above whatever the plugins beneath draw, so other bands stay.
     const below = await next(e)
 
     return (
       <Box flexDirection="column">
         <Box flexDirection="row" paddingX={1} gap={2}>
-          <Text dimColor>🔀 PR #{pr.number}</Text>
-          {pr.stack && <Text dimColor>📚 stack {pr.stack.position}/{pr.stack.total}</Text>}
-          <Text color={checksColour} wrap="truncate-end">{checks}</Text>
-          <Text color={mergeColour}>{merge}</Text>
+          {git && (
+            <Box flexDirection="row">
+              <Text color="cyan">🌿 {git.branch}</Text>
+              {treeGroups(git).flatMap(group => [
+                <Text dimColor>{'  ·  '}</Text>,
+                ...group.flatMap(([text, colour], i) => [i > 0 && <Text>{', '}</Text>, <Text color={colour}>{text}</Text>]),
+              ])}
+            </Box>
+          )}
+          {pr && <Text dimColor>🔀 PR #{pr.number}</Text>}
+          {pr?.stack && <Text dimColor>📚 stack {pr.stack.position}/{pr.stack.total}</Text>}
+          {pr && <Text color={checksEntry(pr.checks)[1]} wrap="truncate-end">{checksEntry(pr.checks)[0]}</Text>}
+          {pr && <Text color={mergeEntry(pr)[1]}>{mergeEntry(pr)[0]}</Text>}
         </Box>
         {below}
       </Box>
@@ -359,8 +359,8 @@ export const register: Register = (on, options) => {
 }
 
 /** Reads `git status --porcelain=v2 --branch`. */
-export function parse(status: string): Tree {
-  const tree: Tree = { branch: '', ahead: 0, behind: 0, staged: 0, modified: 0, untracked: 0, conflicts: 0 }
+export function parse(status: string): Omit<Tree, 'stash' | 'operation'> {
+  const tree = { branch: '', ahead: 0, behind: 0, staged: 0, modified: 0, untracked: 0, conflicts: 0 }
   let oid = ''
   for (const line of status.split('\n')) {
     if (line.startsWith('# branch.oid ')) oid = line.slice(13)
@@ -381,20 +381,21 @@ export function parse(status: string): Tree {
   return tree
 }
 
-/** The status line: `🌿 main ↑2 ↓1 +3 !1 ?2 ✖1 ⚑1 REBASING`, or `✓` when there is nothing to show. */
-export function format(tree: Tree, stash = 0, operation?: string) {
-  const parts = [
-    tree.ahead && `↑${tree.ahead}`,
-    tree.behind && `↓${tree.behind}`,
-    tree.staged && `+${tree.staged}`,
-    tree.modified && `!${tree.modified}`,
-    tree.untracked && `?${tree.untracked}`,
-    tree.conflicts && `✖${tree.conflicts}`,
-    stash && `⚑${stash}`,
-    operation,
-  ].filter(Boolean)
+/**
+ * The band's tree as groups of coloured parts, joined by `·` between groups and `,` within one:
+ * `↑ 1 ahead, ↓ 8 behind · ● 1 staged, ✎ 1 changed, + 2 new · ⚠ merging, ✖ 1 conflict · ⚑ 2 stashed`, or `✓ clean`.
+ */
+export function treeGroups(tree: Tree): [string, string][][] {
+  const groups: [string, string][][] = [
+    [tree.ahead && [`↑ ${tree.ahead} ahead`, 'green'], tree.behind && [`↓ ${tree.behind} behind`, 'yellow']],
+    [tree.staged && [`● ${tree.staged} staged`, 'green'], tree.modified && [`✎ ${tree.modified} changed`, 'yellow'], tree.untracked && [`+ ${tree.untracked} new`, 'gray']],
+    [tree.operation && [`⚠ ${tree.operation}`, 'red'], tree.conflicts && [`✖ ${plural(tree.conflicts, 'conflict')}`, 'red']],
+    [tree.stash && [`⚑ ${tree.stash} stashed`, 'magenta']],
+  ].map(group => group.filter((part): part is [string, string] => Array.isArray(part)))
 
-  return `🌿 ${tree.branch} ${parts.length ? parts.join(' ') : '✓'}`
+  const shown = groups.filter(group => group.length)
+
+  return shown.length ? shown : [[['✓ clean', 'green']]]
 }
 
 function plural(n: number, word: string) {
