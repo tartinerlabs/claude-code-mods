@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.17.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.16.0...v0.17.0) (2026-10-29)
+
+
+### Features
+
+* **git-status:** add git status mod ([6abd634](https://github.com/tartinerlabs/claude-code-mods/commit/6abd634cb6808e15d58ec63a0d31157a10007616))
+* **git-status:** draw the tree in the band with words and colours ([747916c](https://github.com/tartinerlabs/claude-code-mods/commit/747916ca774c2123ae6b088f34d9626b9aa6e8fe))
+* **git-status:** merge pr-pilot into git-status ([7ab0b8d](https://github.com/tartinerlabs/claude-code-mods/commit/7ab0b8d94a05631b25234aae7720a037adfa5537))
+
+
+### Bug Fixes
+
+* **git-status:** ignore checks from superseded runs ([1978fad](https://github.com/tartinerlabs/claude-code-mods/commit/1978fad0fbcab3ec3c2f023c0b708fea1915e991))
+
 ## [0.16.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.15.0...v0.16.0) (2026-10-24)
 
 
