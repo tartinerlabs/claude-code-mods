@@ -12,21 +12,29 @@ const FALLBACK_MS = 5 * 60_000
 // Held by the host, so a pending resume survives a hot reload of this file.
 const resumeAt = atom({ plugin: 'auto-resume', key: 'resumeAt' } as const, null as ResumeAt)
 
-// The module's own timer: a reload drops it, and session.start arms it again.
+// The module's own timers: a reload drops them, and session.start arms them again.
 let timer: Timer | undefined
+let ticker: Timer | undefined
 
 async function cancel($: EngineInterface) {
   timer?.cancel()
-  timer = undefined
+  ticker?.cancel()
+  timer = ticker = undefined
   $.ui.status(undefined)
   await update($, resumeAt, () => null)
 }
 
 async function arm($: EngineInterface, at: number) {
   timer?.cancel()
+  ticker?.cancel()
   await update($, resumeAt, () => at)
   const now = await $.clock.now()
-  $.ui.status(`⏸ auto-resume in ${span(at - now)}`)
+  $.ui.status(`⏸ auto-resume in ${countdown(at - now)}`)
+  ticker = $.clock.every(1000, async () => {
+    const left = at - (await $.clock.now())
+    // The resume clears the line; a tick landing after it must not redraw it.
+    if (left > 0 && (await read($, resumeAt)) === at) $.ui.status(`⏸ auto-resume in ${countdown(left)}`)
+  })
   timer = $.clock.after(Math.max(0, at - now), () => void resume($))
 }
 
@@ -101,4 +109,14 @@ export function span(ms: number) {
   if (m < 60) return `${m}m`
 
   return `${Math.floor(m / 60)}h ${m % 60}m`
+}
+
+/** A ticking clock for the status line: `1:59:42`, or `4:59` under an hour. */
+export function countdown(ms: number) {
+  const total = Math.max(0, Math.ceil(ms / 1000))
+  const h = Math.floor(total / 3600)
+  const m = Math.floor((total % 3600) / 60)
+  const s = String(total % 60).padStart(2, '0')
+
+  return h ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`
 }
