@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.18.0...v0.19.0) (2026-11-11)
+
+
+### Features
+
+* **auto-resume:** count down in the status line ([10f1e22](https://github.com/tartinerlabs/claude-code-mods/commit/10f1e22b521e86eb30af2fff05b0be1eca3ce3d4))
+
 ## [0.18.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.17.0...v0.18.0) (2026-11-01)
 
 
