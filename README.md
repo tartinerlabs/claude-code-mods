@@ -39,7 +39,7 @@
 When a turn stops on a usage limit, waits until the limit resets and sends `continue`. Typing a prompt yourself or running `/auto-resume cancel` stops the wait.
 
 ```text
-⏸ auto-resume in 1h 12m                                    ← status line
+⏸ auto-resume in 1:12:04                                   ← status line
 Usage limit reset, resuming                                 ← toast
 ```
 

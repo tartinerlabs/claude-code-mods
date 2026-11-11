@@ -18,15 +18,22 @@ describe('auto-resume', () => {
     on('session.usage', () => ({ value: { startedAt: NOW, context: { window: 200_000 }, rateLimits: EXHAUSTED } }))
     on('classic.StopFailure', () => ({}))
     on('prompt.submit', ($, e) => (sent.push(e.text), e))
+    const status: (string | undefined)[] = []
+    on('ui.status', ($, e) => (status.push(e.text), { value: undefined }))
 
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
     await $.classic.StopFailure({ error: 'rate_limit' })
     expect((await $.command.run({ command: 'auto-resume' })).text).toBe('Resuming in 2h 1m.')
+    expect(status.at(-1)).toBe('⏸ auto-resume in 2:01:00')
 
-    await clock.advance(TWO_HOURS)
+    await clock.advance(1000)
+    expect(status.at(-1)).toBe('⏸ auto-resume in 2:00:59')
+    await clock.advance(TWO_HOURS - 1000)
+    expect(status.at(-1)).toBe('⏸ auto-resume in 1:00')
     expect(sent).toEqual([])
     await clock.advance(60_000)
     expect(sent).toEqual(['continue'])
+    expect(status.at(-1)).toBeUndefined()
     expect((await $.command.run({ command: 'auto-resume' })).text).toBe('No resume pending.')
   })
 
