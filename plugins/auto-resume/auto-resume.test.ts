@@ -82,4 +82,27 @@ describe('auto-resume', () => {
     await clock.advance(TWO_HOURS * 2)
     expect(sent).toEqual([])
   })
+
+  it('should try again five minutes later when sending continue fails', async ($, on) => {
+    const clock = mock.clock(on, { now: NOW })
+    const sent: string[] = []
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('command.register', () => ({ value: undefined }))
+    on('session.usage', () => ({ value: { startedAt: NOW, context: { window: 200_000 }, rateLimits: [] } }))
+    on('classic.StopFailure', () => ({}))
+    on('prompt.submit', ($, e) => {
+      sent.push(e.text)
+      if (sent.length === 1) throw new Error('refused')
+
+      return e
+    })
+
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+    await $.classic.StopFailure({ error: 'rate_limit' })
+    await clock.advance(5 * 60_000)
+    expect(sent).toEqual(['continue'])
+    expect((await $.command.run({ command: 'auto-resume' })).text).toBe('Resuming in 5m.')
+    await clock.advance(5 * 60_000)
+    expect(sent).toEqual(['continue', 'continue'])
+  })
 })
