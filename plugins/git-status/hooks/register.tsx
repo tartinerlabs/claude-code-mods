@@ -73,7 +73,9 @@ function refreshTree($: EngineInterface) {
     return running
   }
   running = show($)
-    .catch(() => update($, tree, () => null))
+    .catch(async () => {
+      await update($, tree, () => null)
+    })
     .finally(() => {
       running = undefined
       if (isQueued) {
