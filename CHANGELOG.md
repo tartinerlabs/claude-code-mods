@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.19.1](https://github.com/tartinerlabs/claude-code-mods/compare/v0.19.0...v0.19.1) (2026-11-15)
+
+
+### Bug Fixes
+
+* **auto-resume:** resume on wake, retry on failure ([544aa15](https://github.com/tartinerlabs/claude-code-mods/commit/544aa15a8e8a499acb96e43aafc6a726330adf39))
+* **git-status:** keep refresh promise void ([1680bef](https://github.com/tartinerlabs/claude-code-mods/commit/1680bef78645d06249f1cbd93f84265eb2f46c09))
+
 ## [0.19.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.18.0...v0.19.0) (2026-11-11)
 
 
