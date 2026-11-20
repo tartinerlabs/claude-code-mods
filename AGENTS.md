@@ -8,6 +8,25 @@ Canonical guidance for coding agents working in this repository.
 
 A marketplace of Claude Code mods: plugins of function hooks that draw panes, bands, status line entries and toasts, or hook events such as `tool.call` and `prompt.submit`. Mods are Claude-Code-only; agent skills live in [tartinerlabs/skills](https://github.com/tartinerlabs/skills).
 
+## Desktop First
+
+New mods target the Claude desktop app (Code tab), not the terminal CLI. Design and verify on the `desktop` surface first.
+
+A new mod must not duplicate or compete with what the app already does. Before building one, check the idea against the app's own features:
+
+- Usage card: 5-hour, weekly and per-model weekly limits with percent used and reset time
+- Composer: context fill, tokens used and where auto-compact starts
+- Pull request: the session's bound PR with check counts, failing checks, review decision, mergeability, merge, Auto-fix and auto-merge
+- Session title, sidebar status and `/color`
+- Task list, diff pane, terminal pane and notifications
+
+Existing mods that overlap, as checked on 2026-11-20. Don't extend the overlapping part:
+
+- `limit-watch`: the limits band duplicates the usage card; the 80%/95% toasts and session cost do not
+- `token-weather`: context fill duplicates the composer; the per-turn sparkline and delta do not
+- `git-status`: the PR part and `/merge` duplicate the app's PR tracking and merge; the working-tree part does not
+- `auto-session-name`: sets the same session title the app owns, and its `/color` shows up in the transcript as a command entry
+
 ## Mod Layout
 
 Each mod lives at `plugins/<mod-name>/` and is listed in `.claude-plugin/marketplace.json` as `./plugins/<mod-name>`:
