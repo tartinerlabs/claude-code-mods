@@ -24,7 +24,7 @@ A new mod must also not do what a skill can. Build a mod only for what needs a h
 
 Existing mods that overlap, as checked on 2026-11-21. Each drops the overlapping part off the terminal; don't extend it:
 
-- `limit-watch`: the limits duplicate the usage card, so the desktop band shows the session cost alone; the 80%/95% toasts stay
+- `limit-watch`: the limits duplicate the usage card, so it draws no desktop band; the 80%/95% toasts stay
 - `token-weather`: the context fill duplicates the composer, so the desktop band shows the per-turn sparkline and change alone
 - `git-status`: the PR part and `/merge` duplicate the app's PR tracking and merge, so in the app it skips `gh`, the check toasts and `/merge`, and draws the working tree alone
 - `auto-session-name`: the app owns the session title, so it is terminal-only and does nothing in the app; its `/color` shows up in the transcript as a command entry
