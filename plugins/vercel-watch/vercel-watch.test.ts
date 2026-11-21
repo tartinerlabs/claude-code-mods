@@ -235,6 +235,42 @@ describe('vercel-watch reviews', () => {
     await ui.unmount()
   })
 
+  it("should check a newer push at once while an older watch's request is still out", async ($, on) => {
+    const clock = mock.clock(on, { now: 0 })
+    const toasts: string[] = []
+    const ran: string[] = []
+    let head = 'aaa1111'
+    let bbb: unknown[] = []
+    on('process.run', ($, e) => {
+      const cmd = e.argv.join(' ')
+      ran.push(cmd)
+      if (cmd === 'git rev-parse HEAD' || cmd === 'git rev-parse @{u}') return run(head)
+      if (cmd === 'git rev-parse --abbrev-ref HEAD') return run('main')
+      // The older commit's request never answers.
+      if (cmd.includes('aaa1111/statuses')) return new Promise(() => {})
+      if (cmd.includes('bbb2222/statuses')) return run(JSON.stringify(bbb))
+
+      return run('', 1)
+    })
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('ui.toast', ($, e) => (toasts.push(e.text), { value: undefined }))
+    on('session.append', ($, e, next) => next(e))
+    on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false }, text: '' }))
+
+    await $.session.start({ surface: 'desktop', isInteractive: true, cwd: '/work' })
+    await $.tool.call({ tool: 'Bash', command: 'git push', description: 'Push' })
+    await clock.advance(1)
+    head = 'bbb2222'
+    await $.tool.call({ tool: 'Bash', command: 'git push', description: 'Push' })
+    await clock.advance(1)
+    expect(ran.some(c => c.includes('bbb2222/statuses'))).toBe(true)
+
+    // Its deployment fails fast, before the next tick: still reported.
+    bbb = [status('failure', 'Vercel', INSPECT, 'Deployment has failed')]
+    await clock.advance(15_000)
+    expect(toasts).toEqual(['▲ web deploy failed (main)'])
+  })
+
   it('should report a failure once while its note is slow to send', async ($, on) => {
     const clock = mock.clock(on, { now: 0 })
     const repo = { statuses: [status('pending')] as unknown[] }

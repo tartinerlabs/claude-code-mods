@@ -20,8 +20,9 @@ const watch = atom({ plugin: 'vercel-watch', key: 'watch' } as const, null as Wa
 
 // The module's own poll: a reload drops it, and session.start picks the watch up again.
 let timer: Timer | undefined
-// The poll in flight; a tick that lands while it runs is skipped, so a finished project is never reported twice.
-let polling: Promise<void> | undefined
+// The poll in flight and the watch it is for; a tick for that watch while it runs is skipped, so a finished
+// project is never reported twice, while a newer watch polls at once.
+let polling: { id: string; done: Promise<void> } | undefined
 
 async function run($: EngineInterface, argv: string[]) {
   const ran = await $.process.run(argv, { timeoutMs: 15_000 }).catch(() => null)
@@ -93,14 +94,15 @@ async function report($: EngineInterface, d: Deploy, w: NonNullable<Watch>) {
   void $.session.append({ message: { type: 'user', content: [{ type: 'text', text: failureNote(d, w.sha, w.branch) }] } }).catch(() => {})
 }
 
-/** Runs one poll at a time: the timer does not wait for a slow GitHub or a slow note. */
+/** Runs one poll at a time per watch: the timer does not wait for a slow GitHub. */
 function tick($: EngineInterface, id: string) {
-  if (polling) return polling
-  polling = poll($, id).finally(() => {
-    polling = undefined
+  if (polling?.id === id) return polling.done
+  const done = poll($, id).finally(() => {
+    if (polling?.done === done) polling = undefined
   })
+  polling = { id, done }
 
-  return polling
+  return done
 }
 
 async function poll($: EngineInterface, id: string) {
