@@ -20,6 +20,8 @@ A new mod must not duplicate or compete with what the app already does. Before b
 - Session title, sidebar status and `/color`
 - Task list, diff pane, terminal pane and notifications
 
+A new mod must also not do what a skill can. Build a mod only for what needs a hook: blocking or rewriting a tool call, drawing a band, toast or pane, a timer, or watching something outside a turn. An idea that is only instructions or knowledge Claude follows belongs in a skill, in [tartinerlabs/skills](https://github.com/tartinerlabs/skills) or an installed one. When an idea has both, the mod keeps the hook and the instructions go to the skill.
+
 Existing mods that overlap, as checked on 2026-11-21. Each drops the overlapping part off the terminal; don't extend it:
 
 - `limit-watch`: the limits duplicate the usage card, so the desktop band shows the session cost alone; the 80%/95% toasts stay
