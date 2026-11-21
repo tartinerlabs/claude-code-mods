@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.19.3](https://github.com/tartinerlabs/claude-code-mods/compare/v0.19.2...v0.19.3) (2026-11-21)
+
+
+### Bug Fixes
+
+* hide bands that duplicate the desktop app ([8b6e1b5](https://github.com/tartinerlabs/claude-code-mods/commit/8b6e1b5f8cd187532fd4d910758872552cacde33))
+* keep the desktop bands' parts the app lacks ([b21a732](https://github.com/tartinerlabs/claude-code-mods/commit/b21a73248551a1db5a015b19af105cfba6ac6393))
+
 ## [0.19.2](https://github.com/tartinerlabs/claude-code-mods/compare/v0.19.1...v0.19.2) (2026-11-21)
 
 
