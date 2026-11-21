@@ -36,7 +36,7 @@
 
 ### ⏸ auto-resume
 
-When a turn stops on a usage limit, waits until the limit resets and sends `continue`. Typing a prompt yourself or running `/auto-resume cancel` stops the wait.
+When a turn stops on a usage limit, waits until the limit resets and sends `continue`. It reads the reset time from the usage windows and from the limit's own message, so it also waits out a limit the windows don't report, such as one model's own. When neither says, it tries again after 5 minutes, doubling up to an hour while the limit holds. Typing a prompt yourself or running `/auto-resume cancel` stops the wait.
 
 ```text
 ⏸ auto-resume in 1:12:04                                   ← status line
