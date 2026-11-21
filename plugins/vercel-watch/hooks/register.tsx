@@ -13,6 +13,9 @@ const PUBLISHER = 'vercel[bot]'
 
 const PUSH = /(^|[\s;&|(])git\s+push\b/
 const MERGE = /(^|[\s;&|(])gh\s+pr\s+merge\b/
+// What the composer's `!` mode stores: the command and its output, in one user row.
+const BASH_INPUT = /<bash-input>([\s\S]*?)<\/bash-input>/
+const MERGED = /<bash-stdout>[\s\S]*Merged pull request/
 const INSPECTOR = /^https:\/\/vercel\.com\/[\w.-]+\/([\w.-]+)\/(\w+)$/
 
 // Held by the host, so a hot reload keeps the band drawn.
@@ -150,6 +153,12 @@ async function defaultHead($: EngineInterface) {
   return sha ? { branch, sha } : null
 }
 
+/** After a merge: the default branch's new head, unless this watch already follows it. */
+async function afterMerge($: EngineInterface) {
+  const head = await defaultHead($)
+  if (head && (await read($, watch))?.sha !== head.sha) await start($, head.sha, head.branch)
+}
+
 /** After a push: the pushed commit, unless the push failed or the branch has an open pull request the app already follows. */
 async function afterPush($: EngineInterface) {
   const [head, upstream, branch] = await Promise.all([
@@ -189,6 +198,22 @@ export const register: Register = on => {
     }
     const result = await next(e)
     if (PUSH.test(command)) void afterPush($).catch(() => {})
+
+    return result
+  })
+
+  // A push or merge the person ran themselves with `!` never reaches `tool.call`; its row does.
+  on('session.append', async ($, e, next) => {
+    const result = await next(e)
+    if (e.agentId !== undefined || e.message.type !== 'user') return result
+    // The person's own rows: typed (composer), from a phone (bridge), or from an SDK host such as the desktop app (sdk).
+    if (e.origin.kind !== 'composer' && e.origin.kind !== 'bridge' && e.origin.kind !== 'sdk') return result
+    const text = e.message.content.map(b => (b.type === 'text' ? b.text : '')).join('')
+    const command = BASH_INPUT.exec(text)?.[1]
+    if (!command) return result
+    // The row comes after the command ran, so a merge is read from its output rather than from a head before it.
+    if (MERGE.test(command) && MERGED.test(text)) void afterMerge($).catch(() => {})
+    else if (PUSH.test(command)) void afterPush($).catch(() => {})
 
     return result
   })

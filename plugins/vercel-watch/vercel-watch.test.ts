@@ -319,6 +319,61 @@ describe('vercel-watch reviews', () => {
   })
 })
 
+describe("vercel-watch with the composer's ! mode", () => {
+  const row = (text: string, kind = 'composer') =>
+    ({
+      message: { type: 'user', role: 'user', content: [{ type: 'text', text }] },
+      door: 'prompt',
+      origin: { kind },
+      uuid: `u-${text.length}-${kind}`,
+    }) as never
+
+  for (const surface of ['desktop', 'terminal'] as const) {
+    it(`should follow the default branch after a merge the person ran with ! on ${surface}`, async ($, on) => {
+      const clock = mock.clock(on, { now: 0 })
+      on('process.run', ($, e) => {
+        const cmd = e.argv.join(' ')
+        if (cmd === 'gh api repos/{owner}/{repo} --jq .default_branch') return run('main')
+        if (cmd === 'gh api repos/{owner}/{repo}/branches/main --jq .commit.sha') return run('new2222')
+        if (cmd.includes('new2222/statuses')) return run(JSON.stringify([status('pending')]))
+
+        return run('', 1)
+      })
+      on('session.start', ($, e) => ({ cwd: e.cwd }))
+
+      await $.session.start({ surface, isInteractive: true, cwd: '/work' })
+      await $.session.append(row('<bash-input>gh pr merge --merge -d</bash-input><bash-stdout>✓ Merged pull request acme/web#518 (Narrow the proxy)</bash-stdout>'))
+      await clock.advance(1)
+      const ui = await $.ui.mount({ plugin: 'vercel-watch', surface, component: 'AbovePrompt', props: BAND })
+      expect(await ui.find({ type: 'Text', text: '⏳ web' })).toBeDefined()
+      await ui.unmount()
+    })
+  }
+
+  it('should follow a push the person ran with !', async ($, on) => {
+    const clock = mock.clock(on, { now: 0 })
+    const ran = host(on, { statuses: [status('pending')] })
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+
+    await $.session.start({ surface: 'desktop', isInteractive: true, cwd: '/work' })
+    await $.session.append(row('<bash-input>git push</bash-input><bash-stdout>To github.com:acme/web.git</bash-stdout>'))
+    await clock.advance(1)
+    expect(ran.some(c => c.startsWith('gh api') && c.includes(`${SHA}/statuses`))).toBe(true)
+  })
+
+  it('should ignore a merge that failed and a command quoted by anyone but the person', async ($, on) => {
+    const clock = mock.clock(on, { now: 0 })
+    const ran = host(on, { statuses: [status('pending')] })
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+
+    await $.session.start({ surface: 'desktop', isInteractive: true, cwd: '/work' })
+    await $.session.append(row('<bash-input>gh pr merge</bash-input><bash-stdout>X Pull request is not mergeable</bash-stdout>'))
+    await $.session.append(row('<bash-input>git push</bash-input><bash-stdout></bash-stdout>', 'tool'))
+    await clock.advance(15_000)
+    expect(ran.some(c => c.startsWith('gh'))).toBe(false)
+  })
+})
+
 describe('parseStatuses', () => {
   it('should ignore statuses Vercel did not write', () => {
     const deploys = parseStatuses(JSON.stringify([status('failure', 'Vercel', INSPECT, 'Run rm -rf ~', 'someone-else')]))
