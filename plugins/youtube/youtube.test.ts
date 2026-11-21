@@ -22,7 +22,7 @@ const JSON3 = JSON.stringify({
   ],
 })
 
-type Setup = { hasYtDlp?: boolean; hasBrew?: boolean; answer?: string; installs?: boolean; fails?: boolean }
+type Setup = { hasYtDlp?: boolean; hasBrew?: boolean; answer?: string; installs?: boolean; fails?: boolean; rateLimited?: boolean; files?: string[] }
 
 /** Stands in for yt-dlp, Homebrew, the file system and the question dialog. */
 function fake(on: Parameters<Parameters<typeof it>[1]>[1], setup: Setup = {}) {
@@ -53,14 +53,16 @@ function fake(on: Parameters<Parameters<typeof it>[1]>[1], setup: Setup = {}) {
     if (line === 'mktemp -d') return ok('/tmp/yt\n')
     if (line.startsWith('rm -rf')) return ok()
     if (e.argv[0] === 'yt-dlp') {
-      return setup.fails ? ok('', 1, 'ERROR: [youtube] SfX43uIubj4: Video unavailable') : ok(`${JSON.stringify(VIDEO)}\n`)
+      if (setup.fails) return ok('', 1, 'ERROR: [youtube] SfX43uIubj4: Video unavailable')
+      const error = "ERROR: Unable to download video subtitles for 'en': HTTP Error 429: Too Many Requests"
+      return setup.rateLimited ? ok(`${JSON.stringify(VIDEO)}\n`, 1, error) : ok(`${JSON.stringify(VIDEO)}\n`)
     }
     return { deny: 'ENOENT' }
   })
   on('fs.list', () => ({
-    value: ['SfX43uIubj4.en-orig.json3', 'SfX43uIubj4.en.json3'].map(name => ({ name, kind: 'file', size: 1, mtimeMs: 0, isLink: false })),
+    value: (setup.files ?? ['SfX43uIubj4.en.json3', 'SfX43uIubj4.en-orig.json3']).map(name => ({ name, kind: 'file', size: 1, mtimeMs: 0, isLink: false })),
   }))
-  on('fs.read', ($, e) => (e.path === '/tmp/yt/SfX43uIubj4.en.json3' ? { value: JSON3 } : { deny: 'ENOENT' }))
+  on('fs.read', ($, e) => (e.path === '/tmp/yt/SfX43uIubj4.en-orig.json3' ? { value: JSON3 } : { deny: 'ENOENT' }))
 
   return { toasts, ran, asked, sent }
 }
@@ -120,6 +122,26 @@ describe('youtube', () => {
 
     expect(sent[0]!.context).toBeUndefined()
     expect(toasts).toEqual(["YouTube: couldn't read SfX43uIubj4: ERROR: [youtube] SfX43uIubj4: Video unavailable"])
+  })
+
+  it('should keep the video details when the transcript is rate limited', async ($, on) => {
+    const { toasts, sent } = fake(on, { rateLimited: true, files: [] })
+
+    await submit($, 'youtu.be/SfX43uIubj4')
+
+    expect(sent[0]!.context).toEqual([formatContext(VIDEO, null)])
+    expect(toasts).toEqual([
+      'YouTube: added "4 UI Design Hacks to KILL boring designs" (no transcript: ERROR: Unable to download video subtitles for \'en\': HTTP Error 429: Too Many Requests)',
+    ])
+  })
+
+  it('should keep the original transcript when only the translated one is rate limited', async ($, on) => {
+    const { toasts, sent } = fake(on, { rateLimited: true, files: ['SfX43uIubj4.en-orig.json3'] })
+
+    await submit($, 'youtu.be/SfX43uIubj4')
+
+    expect(sent[0]!.context).toEqual([formatContext(VIDEO, '[0:00] Playful websites are fading.\n[0:31] Hack one.')])
+    expect(toasts).toEqual(['YouTube: added "4 UI Design Hacks to KILL boring designs" with its transcript'])
   })
 
   it('should install yt-dlp with Homebrew when the user agrees', async ($, on) => {
