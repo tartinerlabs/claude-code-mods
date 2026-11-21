@@ -328,25 +328,27 @@ describe("vercel-watch with the composer's ! mode", () => {
       uuid: `u-${text.length}-${kind}`,
     }) as never
 
-  it('should follow the default branch after a merge the person ran with !', async ($, on) => {
-    const clock = mock.clock(on, { now: 0 })
-    on('process.run', ($, e) => {
-      const cmd = e.argv.join(' ')
-      if (cmd === 'gh api repos/{owner}/{repo} --jq .default_branch') return run('main')
-      if (cmd === 'gh api repos/{owner}/{repo}/branches/main --jq .commit.sha') return run('new2222')
-      if (cmd.includes('new2222/statuses')) return run(JSON.stringify([status('pending')]))
+  for (const surface of ['desktop', 'terminal'] as const) {
+    it(`should follow the default branch after a merge the person ran with ! on ${surface}`, async ($, on) => {
+      const clock = mock.clock(on, { now: 0 })
+      on('process.run', ($, e) => {
+        const cmd = e.argv.join(' ')
+        if (cmd === 'gh api repos/{owner}/{repo} --jq .default_branch') return run('main')
+        if (cmd === 'gh api repos/{owner}/{repo}/branches/main --jq .commit.sha') return run('new2222')
+        if (cmd.includes('new2222/statuses')) return run(JSON.stringify([status('pending')]))
 
-      return run('', 1)
+        return run('', 1)
+      })
+      on('session.start', ($, e) => ({ cwd: e.cwd }))
+
+      await $.session.start({ surface, isInteractive: true, cwd: '/work' })
+      await $.session.append(row('<bash-input>gh pr merge --merge -d</bash-input><bash-stdout>✓ Merged pull request acme/web#518 (Narrow the proxy)</bash-stdout>'))
+      await clock.advance(1)
+      const ui = await $.ui.mount({ plugin: 'vercel-watch', surface, component: 'AbovePrompt', props: BAND })
+      expect(await ui.find({ type: 'Text', text: '⏳ web' })).toBeDefined()
+      await ui.unmount()
     })
-    on('session.start', ($, e) => ({ cwd: e.cwd }))
-
-    await $.session.start({ surface: 'desktop', isInteractive: true, cwd: '/work' })
-    await $.session.append(row('<bash-input>gh pr merge --merge -d</bash-input><bash-stdout>✓ Merged pull request acme/web#518 (Narrow the proxy)</bash-stdout>'))
-    await clock.advance(1)
-    const ui = await $.ui.mount({ plugin: 'vercel-watch', surface: 'desktop', component: 'AbovePrompt', props: BAND })
-    expect(await ui.find({ type: 'Text', text: '⏳ web' })).toBeDefined()
-    await ui.unmount()
-  })
+  }
 
   it('should follow a push the person ran with !', async ($, on) => {
     const clock = mock.clock(on, { now: 0 })
