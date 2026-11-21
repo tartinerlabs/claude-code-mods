@@ -11,7 +11,7 @@ const BAND = {
 }
 
 describe('limit-watch', () => {
-  for (const surface of ['terminal', 'desktop'] as const) {
+  for (const surface of ['terminal'] as const) {
     it(`should colour each window by how much is used and tick the countdowns on ${surface}`, async ($, on) => {
       // Hooks registered here sit beneath the mod and stand in for Claude Code.
       const clock = mock.clock(on, { now: NOW })
@@ -42,6 +42,33 @@ describe('limit-watch', () => {
       await ui.unmount()
     })
   }
+
+  it('should draw the cost alone on desktop, leaving the limits to the usage card', async ($, on) => {
+    mock.clock(on, { now: NOW })
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('session.usage', () => ({ value: { startedAt: NOW, context: { window: 200_000 }, rateLimits: [{ kind: 'five_hour', percentUsed: 25, resetsAt: '2026-10-07T19:30:00Z' }], cost: { usd: 2.356 } } }))
+    on('ui.render', ($, e) => $.ui.resolve(e).Text({ children: 'beneath' }))
+
+    await $.session.start({ surface: 'desktop', isInteractive: true, cwd: '/work' })
+    const ui = await $.ui.mount({ plugin: 'limit-watch', surface: 'desktop', component: 'AbovePrompt', props: BAND })
+    expect(await ui.find({ type: 'Text', text: /25%/ })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: '💰 $2.36' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'beneath' })).toBeDefined()
+    await ui.unmount()
+  })
+
+  it('should draw nothing on desktop without a cost', async ($, on) => {
+    mock.clock(on, { now: NOW })
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('session.usage', () => ({ value: { startedAt: NOW, context: { window: 200_000 }, rateLimits: [{ kind: 'five_hour', percentUsed: 25, resetsAt: '2026-10-07T19:30:00Z' }] } }))
+    on('ui.render', ($, e) => $.ui.resolve(e).Text({ children: 'beneath' }))
+
+    await $.session.start({ surface: 'desktop', isInteractive: true, cwd: '/work' })
+    const ui = await $.ui.mount({ plugin: 'limit-watch', surface: 'desktop', component: 'AbovePrompt', props: BAND })
+    expect(await ui.find({ type: 'Text', text: /25%|💰/ })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: 'beneath' })).toBeDefined()
+    await ui.unmount()
+  })
 
   it('should toast each threshold once per reset period', async ($, on) => {
     mock.clock(on, { now: NOW })

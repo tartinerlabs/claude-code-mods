@@ -98,6 +98,44 @@ describe('git-status', () => {
     })
   }
 
+  it('should leave the pull request and /merge to the app on desktop', async ($, on) => {
+    mock.clock(on, { now: 0 })
+    const ran: string[] = []
+    const registered: string[] = []
+    on('session.surfaces', () => ({ value: ['desktop'] }))
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('command.register', ($, e) => (registered.push(e.name), { value: undefined }))
+    on('process.run', ($, e) => {
+      ran.push(e.argv.join(' '))
+      return e.argv[0] === 'git' && e.argv[2] === 'status' ? run(DIRTY) : run('', 1)
+    })
+    on('ui.render', ($, e) => $.ui.resolve(e).Text({ children: 'beneath' }))
+
+    await $.session.start({ surface: 'desktop', isInteractive: true, cwd: '/work' })
+    const ui = await $.ui.mount({ plugin: 'git-status', surface: 'desktop', component: 'AbovePrompt', props: BAND })
+    expect(await ui.find({ type: 'Text', text: '🌿 main' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /PR #/ })).toBeUndefined()
+    expect(ran.some(c => c.startsWith('gh '))).toBe(false)
+    expect(registered).not.toContain('merge')
+  })
+
+  it('should keep the pull request and /merge for a terminal watched from another surface', async ($, on) => {
+    mock.clock(on, { now: 0 })
+    const ran: string[] = []
+    const registered: string[] = []
+    on('session.surfaces', () => ({ value: ['terminal', 'mobile'] }))
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('command.register', ($, e) => (registered.push(e.name), { value: undefined }))
+    on('process.run', ($, e) => {
+      ran.push(e.argv.join(' '))
+      return e.argv[0] === 'git' && e.argv[2] === 'status' ? run(DIRTY) : run('', 1)
+    })
+
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+    expect(ran.some(c => c.startsWith('gh pr view'))).toBe(true)
+    expect(registered).toContain('merge')
+  })
+
   it('should draw nothing outside a repository', async ($, on) => {
     mock.clock(on, { now: 0 })
     on('session.start', ($, e) => ({ cwd: e.cwd }))

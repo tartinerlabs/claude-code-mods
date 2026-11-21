@@ -57,7 +57,9 @@ export const register: Register = on => {
     const current = await read($, live)
     const now = current ?? history.at(-1)
 
-    if (e.props.hasSurvey || now === undefined) {
+    // The desktop app's composer already shows the context fill, so it draws the turns' history alone.
+    const isApp = e.surface !== 'terminal'
+    if (e.props.hasSurvey || now === undefined || (isApp && history.length < 2)) {
       return next(e)
     }
 
@@ -65,13 +67,29 @@ export const register: Register = on => {
     // Mid-turn, compare with where the turn began.
     const prev = current ? history.at(-1) : history.at(-2)
     const f = FORECAST.find(b => now.percent < b.upTo) ?? FORECAST[4]
+    const spark = sparkline(history)
+    const change = prev ? trend(now.tokens - prev.tokens, current ? 'this turn' : 'last turn') : ''
+
+    if (isApp) {
+      const below = await next(e)
+
+      return (
+        <Box flexDirection="column">
+          <Box flexDirection="row" paddingX={1}>
+            <Text dimColor>{'context, last turns '}</Text>
+            <Text color={f.color}>{spark}</Text>
+            <Text dimColor wrap="truncate-end">{change}</Text>
+          </Box>
+          {below}
+        </Box>
+      )
+    }
+
     const head = `${f.icon} ${f.word}`
     // An emoji is two columns wide, whatever its `.length`.
     const headWidth = 3 + f.word.length
     const percent = `  ${now.percent}% of context`
     const size = `  ${short(now.tokens)} / ${short(now.window)}`
-    const spark = sparkline(history)
-    const change = prev ? trend(now.tokens - prev.tokens, current ? 'this turn' : 'last turn') : ''
     // Add the history only when the whole row fits the band, so it does not wrap.
     const room = e.props.bodyColumns - 2
     const isWide = headWidth + (percent + size + '   last turns ' + spark + change).length <= room

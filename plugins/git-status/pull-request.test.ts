@@ -121,7 +121,7 @@ describe('parseStack', () => {
 })
 
 describe('git-status pull request', () => {
-  for (const surface of ['terminal', 'desktop'] as const) {
+  for (const surface of ['terminal'] as const) {
     it(`should show the layer's place in its stack on ${surface}`, async ($, on) => {
       on('session.start', ($, e) => ({ cwd: e.cwd }))
       on('command.register', () => ({ value: { command: 'merge' } }))
@@ -189,7 +189,7 @@ describe('git-status pull request', () => {
     expect(ran.some(c => c.startsWith('gh stack merge'))).toBe(false)
   })
 
-  for (const surface of ['terminal', 'desktop'] as const) {
+  for (const surface of ['terminal'] as const) {
     it(`should draw the pull request and toast once its checks pass on ${surface}`, async ($, on) => {
       const clock = mock.clock(on, { now: 0 })
       const toasts: string[] = []

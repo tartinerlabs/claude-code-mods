@@ -26,6 +26,13 @@ let lastConflicts = 0
 // Held by the host, so a hot reload keeps the band drawn.
 const tree = atom({ plugin: 'git-status', key: 'tree' } as const, null as Tree | null)
 
+// The desktop app tracks the branch's pull request and merges it itself; a terminal attached too still wants it.
+async function inApp($: EngineInterface) {
+  const surfaces = await $.session.surfaces().catch(() => [])
+
+  return surfaces.length > 0 && !surfaces.some(s => s === 'terminal')
+}
+
 async function git($: EngineInterface, args: string[]) {
   const ran = await $.process.run([...GIT, ...args]).catch(() => null)
 
@@ -195,6 +202,10 @@ let latest = 0
 
 async function refreshPr($: EngineInterface) {
   const id = ++latest
+  if (await inApp($)) {
+    await update($, current, () => null)
+    return
+  }
   const pr = await fetchPr($)
   const stack = pr && (await fetchStack($))
   if (id !== latest) return
@@ -274,7 +285,7 @@ export const register: Register = (on, options) => {
     timer?.cancel()
     timer = $.clock.every(POLL_MS, () => void refreshTree($))
     await refreshTree($)
-    await $.command.register({ name: 'merge', description: "Merge this branch's pull request, or its whole stack, once checks pass" })
+    if (!(await inApp($))) await $.command.register({ name: 'merge', description: "Merge this branch's pull request, or its whole stack, once checks pass" })
     await refreshPr($)
     $.clock.every(60_000, () => refreshPr($))
 
@@ -298,6 +309,7 @@ export const register: Register = (on, options) => {
   })
 
   on('command.run', { command: 'merge' }, async $ => {
+    if (await inApp($)) return { text: "Merge from the app's pull request controls." }
     await refreshPr($)
     const pr = await read($, current)
     if (!pr) return { text: 'No open pull request for this branch.' }
@@ -327,7 +339,9 @@ export const register: Register = (on, options) => {
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    const [git, pr] = await Promise.all([read($, tree), read($, current)])
+    const git = await read($, tree)
+    // The desktop app already tracks the branch's pull request, so it draws the working tree alone.
+    const pr = e.surface === 'terminal' ? await read($, current) : null
 
     if (e.props.hasSurvey || (!git && !pr)) {
       return next(e)
