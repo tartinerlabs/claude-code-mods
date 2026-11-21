@@ -136,7 +136,8 @@ async function fetchVideo($: EngineInterface, id: string) {
         '--write-subs',
         '--write-auto-subs',
         '--sub-langs',
-        'en.*,en',
+        // en-orig first: on dubbed videos plain en can be a machine translation, which YouTube throttles with 429s.
+        'en-orig,en.*',
         '--sub-format',
         'json3',
         '-P',
@@ -149,14 +150,16 @@ async function fetchVideo($: EngineInterface, id: string) {
       ],
       { timeoutMs: 120_000 },
     )
-    if (exitCode !== 0) throw new Error(lastLine(stderr) || `yt-dlp exited ${exitCode}`)
+    const error = exitCode === 0 ? undefined : lastLine(stderr) || `yt-dlp exited ${exitCode}`
+    // yt-dlp prints the details before fetching subtitles, so a failed subtitle download (such as a 429) still leaves them.
+    if (!stdout.trim()) throw new Error(error ?? 'yt-dlp printed nothing')
     const video = JSON.parse(lastLine(stdout)) as Video
 
     const files = (await $.fs.list(dir)).map(f => f.name).filter(n => n.endsWith('.json3'))
-    const file = files.find(n => n === `${id}.en.json3`) ?? files.sort()[0]
+    const file = files.find(n => n === `${id}.en-orig.json3`) ?? files.find(n => n === `${id}.en.json3`) ?? files.sort()[0]
     const transcript = file ? formatTranscript(await $.fs.read(`${dir}/${file}`)) || null : null
 
-    return { video, transcript }
+    return { video, transcript, error }
   } finally {
     await $.process.run(['rm', '-rf', dir]).catch(() => {})
   }
@@ -171,10 +174,14 @@ export const register: Register = on => {
     const blocks: string[] = []
     for (const id of ids) {
       try {
-        const { video, transcript } = await fetchVideo($, id)
+        const { video, transcript, error } = await fetchVideo($, id)
         blocks.push(formatContext(video, transcript))
         const title = video.title ?? id
-        $.ui.toast(transcript ? `YouTube: added "${title}" with its transcript` : `YouTube: added "${title}" (no transcript)`)
+        $.ui.toast(
+          transcript
+            ? `YouTube: added "${title}" with its transcript`
+            : `YouTube: added "${title}" (no transcript${error ? `: ${error}` : ''})`,
+        )
       } catch (error) {
         $.ui.toast(`YouTube: couldn't read ${id}: ${(error as Error).message}`)
       }
