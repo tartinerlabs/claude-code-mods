@@ -1,5 +1,7 @@
 import { describe, expect, mock, test as it } from 'claude-code/testing'
 
+import { backoff, resetFromMessage } from './hooks/register'
+
 const NOW = Date.parse('2026-10-07T10:00:00Z')
 const RESET = '2026-10-07T12:00:00Z'
 const TWO_HOURS = 2 * 60 * 60_000
@@ -104,5 +106,93 @@ describe('auto-resume', () => {
     expect((await $.command.run({ command: 'auto-resume' })).text).toBe('Resuming in 5m.')
     await clock.advance(5 * 60_000)
     expect(sent).toEqual(['continue', 'continue'])
+  })
+
+  it('should wait for a limit the windows do not report, read from its message', async ($, on) => {
+    const clock = mock.clock(on, { now: NOW })
+    const sent: string[] = []
+    // A model's own limit: the 5-hour and weekly windows are not used up.
+    const windows = [{ kind: 'five_hour', percentUsed: 30, resetsAt: RESET }]
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('command.register', () => ({ value: undefined }))
+    on('session.usage', () => ({ value: { startedAt: NOW, context: { window: 200_000 }, rateLimits: windows } }))
+    on('classic.StopFailure', () => ({}))
+    on('prompt.submit', ($, e) => (sent.push(e.text), e))
+
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+    // 10:00 UTC is 18:00 in Singapore, so 8pm is two hours away.
+    await $.classic.StopFailure({ error: 'rate_limit', last_assistant_message: "You've hit your Opus limit · resets 8pm (Asia/Singapore). /model to switch models." })
+    expect((await $.command.run({ command: 'auto-resume' })).text).toBe('Resuming in 2h 1m.')
+    await clock.advance(TWO_HOURS)
+    expect(sent).toEqual([])
+    await clock.advance(60_000)
+    expect(sent).toEqual(['continue'])
+  })
+
+  it('should wait longer after each retry that still hits an unreadable limit', async ($, on) => {
+    const clock = mock.clock(on, { now: NOW })
+    const sent: string[] = []
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('command.register', () => ({ value: undefined }))
+    on('session.usage', () => ({ value: { startedAt: NOW, context: { window: 200_000 }, rateLimits: [] } }))
+    on('classic.StopFailure', () => ({}))
+    on('prompt.submit', ($, e) => (sent.push(e.text), e))
+
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+    await $.classic.StopFailure({ error: 'rate_limit', last_assistant_message: 'Limit reached.' })
+    await clock.advance(5 * 60_000)
+    expect(sent).toEqual(['continue'])
+
+    // The continue hits the same limit.
+    await $.classic.StopFailure({ error: 'rate_limit', last_assistant_message: 'Limit reached.' })
+    expect((await $.command.run({ command: 'auto-resume' })).text).toBe('Resuming in 10m.')
+    await clock.advance(5 * 60_000)
+    expect(sent).toEqual(['continue'])
+    await clock.advance(5 * 60_000)
+    expect(sent).toEqual(['continue', 'continue'])
+  })
+})
+
+describe('resetFromMessage', () => {
+  // 18:00 on 7 Oct in Singapore, 06:00 in New York (EDT).
+  const now = NOW
+
+  it('should read a time later today in the named zone', () => {
+    expect(resetFromMessage("You've hit your 5-hour limit · resets 11:50pm (Asia/Singapore)", now)).toBe(Date.parse('2026-10-07T15:50:00Z'))
+  })
+
+  it('should read a time already past today as tomorrow', () => {
+    expect(resetFromMessage("You've hit your weekly limit · resets 4pm (Asia/Singapore)", now)).toBe(Date.parse('2026-10-08T08:00:00Z'))
+  })
+
+  it('should read a date and time for any limit name', () => {
+    expect(
+      resetFromMessage("You've hit your Fable limit · resets Nov 25 at 4pm (Asia/Singapore). Switch to another model to continue.", now),
+    ).toBe(Date.parse('2026-11-25T08:00:00Z'))
+  })
+
+  it('should read a date behind now as next year', () => {
+    expect(resetFromMessage("You've hit your Fable limit · resets Jan 2 at 9am (Asia/Singapore)", now)).toBe(Date.parse('2027-01-02T01:00:00Z'))
+  })
+
+  it("should follow the zone's daylight saving offset", () => {
+    expect(resetFromMessage("You've hit your session limit · resets 9am (America/New_York)", now)).toBe(Date.parse('2026-10-07T13:00:00Z'))
+    expect(resetFromMessage("You've hit your session limit · resets Dec 1 at 9am (America/New_York)", now)).toBe(Date.parse('2026-12-01T14:00:00Z'))
+  })
+
+  it('should read 12am as midnight and 12pm as noon', () => {
+    expect(resetFromMessage("You've hit your 5-hour limit · resets 12:20am (Asia/Singapore)", now)).toBe(Date.parse('2026-10-07T16:20:00Z'))
+    expect(resetFromMessage("You've hit your 5-hour limit · resets Oct 8 at 12pm (Asia/Singapore)", now)).toBe(Date.parse('2026-10-08T04:00:00Z'))
+  })
+
+  it('should give nothing for a message without a reset or with an unknown zone', () => {
+    expect(resetFromMessage('Limit reached.', now)).toBeNull()
+    expect(resetFromMessage("You've hit your limit · resets 4pm (Mars/Olympus)", now)).toBeNull()
+  })
+})
+
+describe('backoff', () => {
+  it('should double from five minutes up to an hour', () => {
+    expect([0, 1, 2, 3, 4, 5].map(backoff)).toEqual([5, 10, 20, 40, 60, 60].map(m => m * 60_000))
   })
 })
