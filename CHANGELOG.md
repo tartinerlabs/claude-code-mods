@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.20.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.19.4...v0.20.0) (2026-11-21)
+
+
+### Features
+
+* **vercel-watch:** follow Vercel deploys of pushes and merges ([8f47c3a](https://github.com/tartinerlabs/claude-code-mods/commit/8f47c3a9e167ffb7493392e08acd219d7820ee1c))
+
+
+### Bug Fixes
+
+* **vercel-watch:** address review of merges, polling and status text ([9a3a5ab](https://github.com/tartinerlabs/claude-code-mods/commit/9a3a5ab91edffa0f47bc2ccc078bea9de65435fb))
+* **vercel-watch:** poll a newer watch at once while an older one waits ([6422167](https://github.com/tartinerlabs/claude-code-mods/commit/64221674c564b8aa42aaa5cc63a3ebd3d4de3460))
+* **vercel-watch:** run one poll at a time so failures report once ([36cd368](https://github.com/tartinerlabs/claude-code-mods/commit/36cd3682441f6dde2cafd7769e136811ff1fd26f))
+
 ## [0.19.4](https://github.com/tartinerlabs/claude-code-mods/compare/v0.19.3...v0.19.4) (2026-11-21)
 
 
