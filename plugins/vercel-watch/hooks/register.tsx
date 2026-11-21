@@ -20,6 +20,8 @@ const watch = atom({ plugin: 'vercel-watch', key: 'watch' } as const, null as Wa
 
 // The module's own poll: a reload drops it, and session.start picks the watch up again.
 let timer: Timer | undefined
+// The poll in flight; a tick that lands while it runs is skipped, so a finished project is never reported twice.
+let polling: Promise<void> | undefined
 
 async function run($: EngineInterface, argv: string[]) {
   const ran = await $.process.run(argv, { timeoutMs: 15_000 }).catch(() => null)
@@ -87,7 +89,18 @@ async function report($: EngineInterface, d: Deploy, w: NonNullable<Watch>) {
     return
   }
   $.ui.toast(`▲ ${d.project} deploy failed (${w.branch})`)
-  await $.session.append({ message: { type: 'user', content: [{ type: 'text', text: failureNote(d, w.sha, w.branch) }] } }).catch(() => {})
+  // Not awaited: the note waits on the engine, and the next poll must not wait on the note.
+  void $.session.append({ message: { type: 'user', content: [{ type: 'text', text: failureNote(d, w.sha, w.branch) }] } }).catch(() => {})
+}
+
+/** Runs one poll at a time: the timer does not wait for a slow GitHub or a slow note. */
+function tick($: EngineInterface, id: string) {
+  if (polling) return polling
+  polling = poll($, id).finally(() => {
+    polling = undefined
+  })
+
+  return polling
 }
 
 async function poll($: EngineInterface, id: string) {
@@ -122,8 +135,8 @@ async function start($: EngineInterface, sha: string, branch: string) {
   const startedAt = await $.clock.now()
   const id = `${sha}@${startedAt}`
   await update($, watch, () => ({ id, sha, branch, startedAt, deploys: [], reported: [], isFresh: false }))
-  timer = $.clock.every(POLL_MS, () => void poll($, id))
-  await poll($, id)
+  timer = $.clock.every(POLL_MS, () => void tick($, id))
+  await tick($, id)
 }
 
 /** The default branch and its head commit on GitHub. */
@@ -155,7 +168,7 @@ export const register: Register = on => {
     const w = await read($, watch)
     if (w) {
       timer?.cancel()
-      timer = $.clock.every(POLL_MS, () => void poll($, w.id))
+      timer = $.clock.every(POLL_MS, () => void tick($, w.id))
     }
 
     return result

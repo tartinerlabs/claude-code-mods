@@ -235,6 +235,36 @@ describe('vercel-watch reviews', () => {
     await ui.unmount()
   })
 
+  it('should report a failure once while its note is slow to send', async ($, on) => {
+    const clock = mock.clock(on, { now: 0 })
+    const repo = { statuses: [status('pending')] as unknown[] }
+    host(on, repo)
+    const toasts: string[] = []
+    let notes = 0
+    let release: (() => void) | undefined
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('ui.toast', ($, e) => (toasts.push(e.text), { value: undefined }))
+    // The note is held across two more ticks of the poll.
+    on('session.append', async ($, e, next) => {
+      notes += 1
+      await new Promise<void>(resolve => (release = resolve))
+      return next(e)
+    })
+    on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false }, text: '' }))
+
+    await $.session.start({ surface: 'desktop', isInteractive: true, cwd: '/work' })
+    await $.tool.call({ tool: 'Bash', command: 'git push', description: 'Push' })
+    await clock.advance(1)
+    repo.statuses = [status('failure', 'Vercel', INSPECT, 'Deployment has failed')]
+    await clock.advance(15_000)
+    await clock.advance(15_000)
+    await clock.advance(15_000)
+    release?.()
+    await clock.advance(15_000)
+    expect(toasts).toEqual(['▲ web deploy failed (main)'])
+    expect(notes).toBe(1)
+  })
+
   it('should stop at the deadline even while GitHub keeps failing', async ($, on) => {
     const clock = mock.clock(on, { now: 0 })
     const ran = host(on, { statuses: [], gh: 1 })
