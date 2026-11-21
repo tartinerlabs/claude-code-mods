@@ -1,7 +1,7 @@
 {
   "name": "vercel-watch",
   "displayName": "Vercel Watch",
-  "version": "0.20.1",
+  "version": "0.21.0",
   "description": "Follows the Vercel deployments of a pushed commit, a pull request's preview included, or of the default branch after a merge, above the prompt, toasts when they finish and tells Claude when one fails.",
   "author": {
     "name": "Tartiner Labs",
