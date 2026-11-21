@@ -20,12 +20,12 @@ A new mod must not duplicate or compete with what the app already does. Before b
 - Session title, sidebar status and `/color`
 - Task list, diff pane, terminal pane and notifications
 
-Existing mods that overlap, as checked on 2026-11-20. Don't extend the overlapping part:
+Existing mods that overlap, as checked on 2026-11-21. Each drops the overlapping part off the terminal; don't extend it:
 
-- `limit-watch`: the limits band duplicates the usage card; the 80%/95% toasts and session cost do not
-- `token-weather`: context fill duplicates the composer; the per-turn sparkline and delta do not
-- `git-status`: the PR part and `/merge` duplicate the app's PR tracking and merge; the working-tree part does not
-- `auto-session-name`: sets the same session title the app owns, and its `/color` shows up in the transcript as a command entry
+- `limit-watch`: the limits duplicate the usage card, so the desktop band shows the session cost alone; the 80%/95% toasts stay
+- `token-weather`: the context fill duplicates the composer, so the desktop band shows the per-turn sparkline and change alone
+- `git-status`: the PR part and `/merge` duplicate the app's PR tracking and merge, so in the app it skips `gh`, the check toasts and `/merge`, and draws the working tree alone
+- `auto-session-name`: the app owns the session title, so it is terminal-only and does nothing in the app; its `/color` shows up in the transcript as a command entry
 
 ## Mod Layout
 

@@ -37,8 +37,9 @@ export const register: Register = (on, options) => {
     if (e.source !== undefined && e.source !== 'user') return result
     const prompt = e.prompt.trim()
     if (!prompt || prompt.startsWith('/')) return result
-    // The desktop app names its sessions itself.
-    if ((await $.session.surfaces().catch(() => [])).some(s => s !== 'terminal')) return result
+    // The desktop app names its sessions itself; a terminal attached too still wants a name.
+    const surfaces = await $.session.surfaces().catch(() => [])
+    if (surfaces.length > 0 && !surfaces.some(s => s === 'terminal')) return result
     const state = await read($, naming)
     if (state.isDone) return result
     // Stop for good once -n, /rename or another hook names the session.

@@ -18,6 +18,14 @@ describe('auto-session-name', () => {
     expect(result.sessionTitle).toBeUndefined()
   })
 
+  it('should still name a terminal session watched from another surface', async ($, on) => {
+    on('session.surfaces', () => ({ value: ['terminal', 'mobile'] }))
+    on('classic.UserPromptSubmit', () => ({}))
+    on('model.complete', () => ({ value: { isAnswered: true, text: 'Fix login redirect bug', usage } }))
+    const result = await $.classic.UserPromptSubmit({ prompt: 'the login page redirects in a loop', source: 'user' })
+    expect(result.sessionTitle).toBe('Fix login redirect bug')
+  })
+
   it('should colour the prompt bar once the named turn completes', { options: { color: 'cyan' } }, async ($, on) => {
     on('classic.UserPromptSubmit', () => ({}))
     on('model.complete', () => ({ value: { isAnswered: true, text: 'Fix login redirect bug', usage } }))

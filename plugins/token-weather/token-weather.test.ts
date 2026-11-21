@@ -54,18 +54,23 @@ describe('token-weather', () => {
     })
   }
 
-  it('should leave the context fill to the composer on desktop', async ($, on) => {
+  it('should draw the turns alone on desktop, leaving the context fill to the composer', async ($, on) => {
+    let tokens = 36_100
     on('session.start', ($, e) => ({ cwd: e.cwd }))
-    on('session.usage', () => ({ value: { startedAt: 0, rateLimits: [], context: { tokens: 36_100, window: 200_000, percent: 18 } } }))
+    on('session.usage', () => ({ value: { startedAt: 0, rateLimits: [], context: { tokens, window: 200_000 } } }))
+    on('turn.complete', () => ({ text: '' }))
     on('ui.render', ($, e) => $.ui.resolve(e).Text({ children: 'beneath' }))
+    const props = { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 120, scroll: { offset: 0, bodyRows: 10 }, view: {} }
 
     await $.session.start({ surface: 'desktop', isInteractive: true, cwd: '/work' })
-    const ui = await $.ui.mount({
-      plugin: 'token-weather',
-      surface: 'desktop',
-      component: 'AbovePrompt',
-      props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 120, scroll: { offset: 0, bodyRows: 10 }, view: {} },
-    })
+    const ui = await $.ui.mount({ plugin: 'token-weather', surface: 'desktop', component: 'AbovePrompt', props })
+    // One reading is no history yet.
+    expect(await ui.find({ type: 'Text', text: /last turns/ })).toBeUndefined()
+
+    tokens = 52_000
+    await $.turn.complete({ reason: 'answer', answer: 'ok', durationMs: 1, isAborted: false, turnId: 't1' })
+    expect(await ui.find({ type: 'Text', text: /last turns/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /▲ \+15\.9k last turn/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /of context/ })).toBeUndefined()
     expect(await ui.find({ type: 'Text', text: 'beneath' })).toBeDefined()
     await ui.unmount()

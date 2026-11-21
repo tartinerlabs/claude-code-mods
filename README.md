@@ -22,7 +22,7 @@
 | | Mod | Where it shows | In one line |
 | :-: | --- | --- | --- |
 | ⏸ | [auto-resume](#-auto-resume) | Status line, toast | Picks a turn back up once a usage limit resets |
-| 🏷 | [auto-session-name](#-auto-session-name) | Session title | Names each session from its first prompt and keeps the name current as the work moves on |
+| 🏷 | [auto-session-name](#-auto-session-name) | Session title | Names each session from its first prompt and keeps the name current as the work moves on (terminal only) |
 | ⏱ | [cache-clock](#-cache-clock) | Band above the prompt | Counts down to the prompt cache going cold |
 | 🌿 | [git-status](#-git-status) | Band above the prompt, toasts | Shows the branch, working tree and pull request, and merges the PR with `/merge` |
 | 📊 | [limit-watch](#-limit-watch) | Band above the prompt, toasts | Shows the 5-hour and weekly usage limits and the session's cost |
@@ -47,7 +47,7 @@ Usage limit reset, resuming                                 ← toast
 
 ### 🏷 auto-session-name
 
-Names each session from its first prompt using Haiku and can give it a prompt bar colour, so it is easy to find with `claude -r` after a crash. When the first prompt is short, such as `continue` or `look at this`, it titles the session again from the last four prompts on the fourth. Every eighth prompt it checks the title against the last four prompts and renames the session only when the work has moved to a different task; small shifts keep the title. Sessions already named with `-n` or `/rename` are left alone, and a rename stops any re-title. Set the `color` option to `red`, `blue`, `green`, `yellow`, `purple`, `orange`, `pink` or `cyan` to colour named sessions; `default` leaves the colour alone.
+Names each session from its first prompt using Haiku and can give it a prompt bar colour, so it is easy to find with `claude -r` after a crash. When the first prompt is short, such as `continue` or `look at this`, it titles the session again from the last four prompts on the fourth. Every eighth prompt it checks the title against the last four prompts and renames the session only when the work has moved to a different task; small shifts keep the title. Sessions already named with `-n` or `/rename` are left alone, and a rename stops any re-title. Set the `color` option to `red`, `blue`, `green`, `yellow`, `purple`, `orange`, `pink` or `cyan` to colour named sessions; `default` leaves the colour alone. Terminal only: in the desktop app it does nothing, as the app names its own sessions.
 
 ```text
 > fix the flaky retry test in the upload worker
@@ -71,7 +71,7 @@ Draws a countdown above the prompt to when the prompt cache goes cold, with the 
 
 Draws the branch and working tree above the prompt, refreshed after every tool call and every 15 seconds, in plain words grouped by what they are about: commits ahead and behind the upstream as of the last fetch; staged, changed and new files; a rebase, merge, cherry-pick, revert or bisect in progress and its conflicts; and stashes. Each part has its own colour, and a clean tree reads `✓ clean`. Toasts when an operation stops on conflicts. It never fetches.
 
-Beside it, draws the current branch's open pull request with its checks and whether it can merge, refreshed each minute and after every turn. Toasts when a run of checks finishes. `/merge` merges it with `gh` and deletes the branch, but only once every check has passed and nothing blocks it. On a [gh-stack](https://github.com/github/gh-stack) layer the band shows its place in the stack, and `/merge` merges the whole stack with `gh stack merge` once every unmerged layer has passed its checks and has no unpushed commits, then switches to the trunk and deletes every layer's branch, local and remote, once all of them have merged. Set the `method` option to `merge` (default), `squash` or `rebase`. Needs the [GitHub CLI](https://cli.github.com), signed in.
+Beside it, draws the current branch's open pull request with its checks and whether it can merge, refreshed each minute and after every turn. Toasts when a run of checks finishes. `/merge` merges it with `gh` and deletes the branch, but only once every check has passed and nothing blocks it. On a [gh-stack](https://github.com/github/gh-stack) layer the band shows its place in the stack, and `/merge` merges the whole stack with `gh stack merge` once every unmerged layer has passed its checks and has no unpushed commits, then switches to the trunk and deletes every layer's branch, local and remote, once all of them have merged. Set the `method` option to `merge` (default), `squash` or `rebase`. Needs the [GitHub CLI](https://cli.github.com), signed in. In the desktop app the band shows the working tree alone: the app already tracks and merges the pull request, so there are no PR checks, toasts or `/merge`.
 
 ```text
 🌿 main  ·  ✓ clean                                                          ← band
@@ -88,7 +88,7 @@ PR #42 checks passed, ready to /merge                                        ←
 
 ### 📊 limit-watch
 
-Draws the 5-hour and weekly usage limits above the prompt with live reset countdowns, green under 60%, yellow to 80% and red past it. Toasts once a window passes 80% and again at 95%. Any other window the API reports, such as a gateway spend limit, shows under its own name. The session's cost so far follows the limits.
+Draws the 5-hour and weekly usage limits above the prompt with live reset countdowns, green under 60%, yellow to 80% and red past it. Toasts once a window passes 80% and again at 95%. Any other window the API reports, such as a gateway spend limit, shows under its own name. The session's cost so far follows the limits. In the desktop app the band shows the cost alone, since the usage card shows the limits; the toasts still fire.
 
 ```text
 🕔 5h 42% · 2h17m  📅 7d 81% · 3d4h  💰 $2.36              ← band
@@ -148,7 +148,7 @@ Compacted at 75%: context high; continuing                   ← toast
 
 ### ⛅ token-weather
 
-Draws a forecast of the context window above the prompt, with tokens used, a sparkline of the last 12 turns and the change since the last turn.
+Draws a forecast of the context window above the prompt, with tokens used, a sparkline of the last 12 turns and the change since the last turn. In the desktop app, where the composer shows the fill, it draws the sparkline and change alone.
 
 ```text
 ⛅ Cloudy  38% of context  76.4k / 200k   last turns ▁▂▂▃▄▄▅▆  ▲ +4.1k last turn

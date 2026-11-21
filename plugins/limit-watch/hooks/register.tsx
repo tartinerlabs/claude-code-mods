@@ -50,11 +50,11 @@ export const register: Register = (on) => {
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    const latest = await read($, limits)
+    // The desktop app's usage card already shows the limits, so it draws the cost alone.
+    const latest = e.surface === 'terminal' ? await read($, limits) : []
     const usd = await read($, cost)
 
-    // The desktop app's usage card already shows the limits.
-    if (e.surface !== 'terminal' || e.props.hasSurvey || (latest.length === 0 && usd === null)) {
+    if (e.props.hasSurvey || (latest.length === 0 && usd === null)) {
       return next(e)
     }
 

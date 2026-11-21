@@ -43,7 +43,21 @@ describe('limit-watch', () => {
     })
   }
 
-  it('should leave the band to the usage card on desktop', async ($, on) => {
+  it('should draw the cost alone on desktop, leaving the limits to the usage card', async ($, on) => {
+    mock.clock(on, { now: NOW })
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('session.usage', () => ({ value: { startedAt: NOW, context: { window: 200_000 }, rateLimits: [{ kind: 'five_hour', percentUsed: 25, resetsAt: '2026-10-07T19:30:00Z' }], cost: { usd: 2.356 } } }))
+    on('ui.render', ($, e) => $.ui.resolve(e).Text({ children: 'beneath' }))
+
+    await $.session.start({ surface: 'desktop', isInteractive: true, cwd: '/work' })
+    const ui = await $.ui.mount({ plugin: 'limit-watch', surface: 'desktop', component: 'AbovePrompt', props: BAND })
+    expect(await ui.find({ type: 'Text', text: /25%/ })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: '💰 $2.36' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'beneath' })).toBeDefined()
+    await ui.unmount()
+  })
+
+  it('should draw nothing on desktop without a cost', async ($, on) => {
     mock.clock(on, { now: NOW })
     on('session.start', ($, e) => ({ cwd: e.cwd }))
     on('session.usage', () => ({ value: { startedAt: NOW, context: { window: 200_000 }, rateLimits: [{ kind: 'five_hour', percentUsed: 25, resetsAt: '2026-10-07T19:30:00Z' }] } }))
@@ -51,7 +65,7 @@ describe('limit-watch', () => {
 
     await $.session.start({ surface: 'desktop', isInteractive: true, cwd: '/work' })
     const ui = await $.ui.mount({ plugin: 'limit-watch', surface: 'desktop', component: 'AbovePrompt', props: BAND })
-    expect(await ui.find({ type: 'Text', text: /25%/ })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: /25%|💰/ })).toBeUndefined()
     expect(await ui.find({ type: 'Text', text: 'beneath' })).toBeDefined()
     await ui.unmount()
   })
