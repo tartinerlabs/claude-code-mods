@@ -28,7 +28,7 @@
 | 📊 | [limit-watch](#-limit-watch) | Band above the prompt, toasts | Shows the 5-hour and weekly usage limits |
 | 📝 | [release-notes](#-release-notes) | Band above the prompt, toast | Drafts App Store release notes for Xcode projects when the version is bumped |
 | 📱 | [resource-watch](#-resource-watch) | Band above the prompt, toast | Shows which session is using each simulator, Claude Design project or the Xcode app, and messages the other session on a clash |
-| 🗜 | [smart-compact](#-smart-compact) | Toast | Compacts between turns, sooner at checkpoints or when the cache is cooling |
+| 🗜 | [smart-compact](#-smart-compact) | Toast | **Deprecated.** Compacts between turns, sooner at checkpoints or when the cache is cooling |
 | ⛅ | [token-weather](#-token-weather) | Band above the prompt | Forecasts how full the context window is |
 | ▲ | [vercel-watch](#-vercel-watch) | Band above the prompt, toasts, Claude's context | Follows the Vercel deploy of a push, preview or production, or a merge, and tells Claude when one fails |
 | ▶️ | [youtube](#️-youtube) | Toast, Claude's context | Hands Claude the transcript, chapters and description of YouTube links in a prompt |
@@ -127,6 +127,9 @@ iPhone 18 Pro is in use by the web session; asked it, waiting                   
 <sub>📁 [`plugins/resource-watch`](plugins/resource-watch)</sub>
 
 ### 🗜 smart-compact
+
+> [!WARNING]
+> Deprecated. Claude Code already compacts the conversation on idle, so this mod adds nothing you can see. It stays listed for now and will be removed in a later release.
 
 Compacts the conversation between turns, never during one, weighing several factors against the context's fill. Past the `threshold` option (60, 70 default, or 80%) it compacts about ten seconds after a turn ends. It compacts sooner when compacting is cheapest or most worth it:
 
