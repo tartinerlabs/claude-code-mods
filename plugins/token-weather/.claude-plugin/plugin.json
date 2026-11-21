@@ -1,7 +1,7 @@
 {
   "name": "token-weather",
   "displayName": "Token Weather",
-  "version": "0.19.2",
+  "version": "0.19.3",
   "description": "A live forecast of the context window, drawn above the prompt. In the desktop app it shows the last turns alone and leaves the fill to the composer.",
   "author": {
     "name": "Tartiner Labs",

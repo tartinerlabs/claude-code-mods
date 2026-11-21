@@ -1,7 +1,7 @@
 {
   "name": "auto-session-name",
   "displayName": "Auto Session Name",
-  "version": "0.19.2",
+  "version": "0.19.3",
   "description": "Names each session from its first prompt and re-checks the name every few prompts as the work moves on, so it is easy to find in /resume. Terminal only: the desktop app names its own sessions.",
   "author": {
     "name": "Tartiner Labs",
