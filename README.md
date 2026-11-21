@@ -30,6 +30,7 @@
 | 📱 | [resource-watch](#-resource-watch) | Band above the prompt, toast | Shows which session is using each simulator, Claude Design project or the Xcode app, and messages the other session on a clash |
 | 🗜 | [smart-compact](#-smart-compact) | Toast | Compacts between turns, sooner at checkpoints or when the cache is cooling |
 | ⛅ | [token-weather](#-token-weather) | Band above the prompt | Forecasts how full the context window is |
+| ▲ | [vercel-watch](#-vercel-watch) | Band above the prompt, toasts, Claude's context | Follows the Vercel deploy of a push with no pull request, or a merge, and tells Claude when one fails |
 | ▶️ | [youtube](#️-youtube) | Toast, Claude's context | Hands Claude the transcript, chapters and description of YouTube links in a prompt |
 
 ---
@@ -159,6 +160,17 @@ Draws a forecast of the context window above the prompt, with tokens used, a spa
 | under 25% | under 50% | under 75% | under 90% | 90% and up |
 
 <sub>📁 [`plugins/token-weather`](plugins/token-weather)</sub>
+
+### ▲ vercel-watch
+
+After Claude runs `git push` on a branch with no open pull request, or `gh pr merge`, follows the Vercel deployments of that commit (the default branch's new head after a merge) above the prompt, one entry per Vercel project, checked every 15 seconds. Toasts when each finishes. When one fails, it also tells Claude the project, commit, inspector link and deployment id, so Claude can tell you and read the build logs with the Vercel tools before changing anything. A branch with an open pull request is left to the desktop app's pull request card, which already shows the Vercel check. It reads the commit statuses Vercel reports to GitHub, so it needs the [GitHub CLI](https://cli.github.com), signed in, and no Vercel login. It stays quiet about a commit that had already finished deploying, gives up after 3 minutes on a repository Vercel does not deploy, and stops following after 30 minutes.
+
+```text
+▲ main  ⏳ stockfind-web  ✅ stockfind-api  2m                ← band
+▲ stockfind-web deploy failed (main)                          ← toast
+```
+
+<sub>📁 [`plugins/vercel-watch`](plugins/vercel-watch)</sub>
 
 ### ▶️ youtube
 

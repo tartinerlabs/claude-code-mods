@@ -14,6 +14,7 @@
         { "type": "json", "path": "plugins/resource-watch/.claude-plugin/plugin.json", "jsonpath": "$.version" },
         { "type": "json", "path": "plugins/smart-compact/.claude-plugin/plugin.json", "jsonpath": "$.version" },
         { "type": "json", "path": "plugins/token-weather/.claude-plugin/plugin.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "plugins/vercel-watch/.claude-plugin/plugin.json", "jsonpath": "$.version" },
         { "type": "json", "path": "plugins/youtube/.claude-plugin/plugin.json", "jsonpath": "$.version" }
       ]
     }
