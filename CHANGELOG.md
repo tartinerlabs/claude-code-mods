@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.1](https://github.com/tartinerlabs/claude-code-mods/compare/v0.20.0...v0.20.1) (2026-11-21)
+
+
+### Bug Fixes
+
+* **vercel-watch:** follow pushes and merges run with ! ([8695cfc](https://github.com/tartinerlabs/claude-code-mods/commit/8695cfc745a2f53a712a032a7ff3af4120de6e00))
+
 ## [0.20.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.19.4...v0.20.0) (2026-11-21)
 
 
