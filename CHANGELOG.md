@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.20.1...v0.21.0) (2026-11-21)
+
+
+### Features
+
+* **vercel-watch:** follow pull request preview deploys ([21c930c](https://github.com/tartinerlabs/claude-code-mods/commit/21c930c6d56da2db23da7ce7595251acdf65eaf4))
+
 ## [0.20.1](https://github.com/tartinerlabs/claude-code-mods/compare/v0.20.0...v0.20.1) (2026-11-21)
 
 
