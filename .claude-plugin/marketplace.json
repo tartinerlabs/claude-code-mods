@@ -34,7 +34,7 @@
     {
       "name": "smart-compact",
       "source": "./plugins/smart-compact",
-      "description": "Compacts between turns when the context is full enough, sooner after a commit, PR, approved plan or finished todo list, or when the prompt cache is about to go cold or the 5-hour limit runs low."
+      "description": "Deprecated: Claude Code already compacts on idle. Compacts between turns when the context is full enough, sooner after a commit, PR, approved plan or finished todo list, or when the prompt cache is about to go cold or the 5-hour limit runs low."
     },
     {
       "name": "release-notes",
