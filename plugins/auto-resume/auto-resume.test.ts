@@ -153,6 +153,28 @@ describe('auto-resume', () => {
   })
 })
 
+describe('auto-resume backoff', () => {
+  it("should start a later limit at five minutes once the person's own prompt follows a resume", async ($, on) => {
+    const clock = mock.clock(on, { now: NOW })
+    const sent: string[] = []
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('command.register', () => ({ value: undefined }))
+    on('session.usage', () => ({ value: { startedAt: NOW, context: { window: 200_000 }, rateLimits: [] } }))
+    on('classic.StopFailure', () => ({}))
+    on('prompt.submit', ($, e) => (sent.push(e.text), e))
+
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+    await $.classic.StopFailure({ error: 'rate_limit', last_assistant_message: 'Limit reached.' })
+    await clock.advance(5 * 60_000)
+    expect(sent).toEqual(['continue'])
+
+    // The resumed turn ran; later the person types, and another limit hits.
+    await $.prompt.submit({ text: 'next task', origin: { kind: 'composer' } } as never)
+    await $.classic.StopFailure({ error: 'rate_limit', last_assistant_message: 'Limit reached.' })
+    expect((await $.command.run({ command: 'auto-resume' })).text).toBe('Resuming in 5m.')
+  })
+})
+
 describe('resetFromMessage', () => {
   // 18:00 on 7 Oct in Singapore, 06:00 in New York (EDT).
   const now = NOW
@@ -178,6 +200,22 @@ describe('resetFromMessage', () => {
   it("should follow the zone's daylight saving offset", () => {
     expect(resetFromMessage("You've hit your session limit · resets 9am (America/New_York)", now)).toBe(Date.parse('2026-10-07T13:00:00Z'))
     expect(resetFromMessage("You've hit your session limit · resets Dec 1 at 9am (America/New_York)", now)).toBe(Date.parse('2026-12-01T14:00:00Z'))
+  })
+
+  it('should take the second of a time the clocks repeat when the first has passed', () => {
+    // 06:10 UTC on 1 Nov is 1:10am EST, after the first 1:30am (05:30 UTC, EDT) and before the second.
+    const fallBack = Date.parse('2026-11-01T06:10:00Z')
+    expect(resetFromMessage("You've hit your 5-hour limit · resets 1:30am (America/New_York)", fallBack)).toBe(Date.parse('2026-11-01T06:30:00Z'))
+    expect(resetFromMessage("You've hit your 5-hour limit · resets 1:30am (America/New_York)", Date.parse('2026-11-01T05:10:00Z'))).toBe(
+      Date.parse('2026-11-01T05:30:00Z'),
+    )
+  })
+
+  it('should read a time the clocks skip with the offset before the change', () => {
+    // 2:30am on 8 Mar does not exist in New York; read as EST it is 07:30 UTC, 3:30am EDT.
+    expect(resetFromMessage("You've hit your 5-hour limit · resets Mar 8 at 2:30am (America/New_York)", Date.parse('2027-03-08T05:00:00Z'))).toBe(
+      Date.parse('2027-03-08T07:30:00Z'),
+    )
   })
 
   it('should read 12am as midnight and 12pm as noon', () => {

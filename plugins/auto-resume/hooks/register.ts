@@ -97,9 +97,10 @@ export const register: Register = (on) => {
   // The person picked the session back up themselves.
   on('prompt.submit', async ($, e, next) => {
     if (e.origin.kind === 'composer' || e.origin.kind === 'bridge') {
+      // Their own prompt starts any later limit over at the shortest wait.
+      misses = 0
       if ((await read($, resumeAt)) !== null) {
         note($, `cancelled by a ${e.origin.kind} prompt`)
-        misses = 0
         await cancel($)
       }
     }
@@ -157,13 +158,18 @@ export function resetFromMessage(message: string, now: number): number | null {
 
   try {
     const today = wall(zone!, now)
-    if (mon === undefined) {
-      const at = fromWall(zone!, today.year, today.month, today.day, h, m)
-      return at > now ? at : fromWall(zone!, today.year, today.month, today.day + 1, h, m)
+    // The first instant still ahead, else the last: a time the clocks repeat has two.
+    const pick = (year: number, month: number, day: number) => {
+      const ats = fromWall(zone!, year, month, day, h, m)
+      return ats.find(at => at > now) ?? ats.at(-1)!
     }
-    const at = fromWall(zone!, today.year, month, Number(day), h, m)
+    if (mon === undefined) {
+      const at = pick(today.year, today.month, today.day)
+      return at > now ? at : pick(today.year, today.month, today.day + 1)
+    }
+    const at = pick(today.year, month, Number(day))
     // A date well behind now is next year's, as in a December message naming January.
-    return at < now - 86_400_000 ? fromWall(zone!, today.year + 1, month, Number(day), h, m) : at
+    return at < now - 86_400_000 ? pick(today.year + 1, month, Number(day)) : at
   } catch {
     // An unknown time zone.
     return null
@@ -187,17 +193,27 @@ function wall(zone: string, ms: number) {
   return { year: get('year'), month: get('month') - 1, day: get('day'), hour: get('hour'), minute: get('minute'), second: get('second') }
 }
 
-/** The instant a wall-clock time in `zone` names; day and month may overflow, as with `Date.UTC`. */
+/**
+ * The instants a wall-clock time in `zone` names, earliest first: two in the hour the clocks repeat,
+ * and in the hour they skip, the time read with the offset before the change. Day and month may
+ * overflow, as with `Date.UTC`.
+ */
 function fromWall(zone: string, year: number, month: number, day: number, hour: number, minute: number) {
   const guess = Date.UTC(year, month, day, hour, minute)
   const offset = (ms: number) => {
     const w = wall(zone, ms)
     return Date.UTC(w.year, w.month, w.day, w.hour, w.minute, w.second) - Math.floor(ms / 1000) * 1000
   }
-  const first = guess - offset(guess)
+  // A day either side lies beyond any clock change near the time.
+  const before = guess - offset(guess - 86_400_000)
+  const after = guess - offset(guess + 86_400_000)
+  const names = (at: number) => {
+    const w = wall(zone, at)
+    return w.hour === hour && w.minute === minute
+  }
+  const ats = [...new Set([before, after])].filter(names).sort((a, b) => a - b)
 
-  // Around a clock change the offset at the answer can differ from the guess's.
-  return guess - offset(first)
+  return ats.length ? ats : [before]
 }
 
 export function span(ms: number) {
