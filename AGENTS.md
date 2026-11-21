@@ -27,6 +27,7 @@ Existing mods that overlap, as checked on 2026-11-21. Each drops the overlapping
 - `limit-watch`: the limits duplicate the usage card, so it draws no desktop band; the 80%/95% toasts stay
 - `token-weather`: the context fill duplicates the composer, so the desktop band shows the per-turn sparkline and change alone
 - `git-status`: the PR part and `/merge` duplicate the app's PR tracking and merge, so in the app it skips `gh`, the check toasts and `/merge`, and draws the working tree alone
+- `vercel-watch`: on a pull request's branch the app's PR card also counts the Vercel check; the user chose on 2026-11-21 to keep following previews there for the per-project toast and failure note, so don't drop it as an overlap
 - `auto-session-name`: the app owns the session title, so it is terminal-only and does nothing in the app; its `/color` shows up in the transcript as a command entry
 
 ## Mod Layout

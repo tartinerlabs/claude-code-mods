@@ -59,7 +59,7 @@
     {
       "name": "vercel-watch",
       "source": "./plugins/vercel-watch",
-      "description": "Follows the Vercel deployments of a commit pushed without a pull request, or merged to the default branch, toasts when they finish and tells Claude when one fails."
+      "description": "Follows the Vercel deployments of a pushed commit, a pull request's preview included, or of the default branch after a merge, above the prompt, toasts when they finish and tells Claude when one fails."
     }
   ]
 }

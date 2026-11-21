@@ -15,7 +15,7 @@ const status = (state: string, context = 'Vercel', url = INSPECT, description = 
   creator: { login: creator },
 })
 
-/** Stands in for git and gh: a pushed main with no pull request, whose statuses the test sets. */
+/** Stands in for git and gh: a pushed main, whose statuses the test sets. */
 function host(on: Parameters<Parameters<typeof it>[1]>[1], repo: { statuses: unknown[]; pr?: string; upstream?: string; head?: string; gh?: number }) {
   const ran: string[] = []
   on('process.run', ($, e) => {
@@ -92,17 +92,29 @@ describe('vercel-watch', () => {
     expect(notes[0]).toContain('dpl_AbCd123')
   })
 
-  it('should leave a branch with an open pull request to the app', async ($, on) => {
-    const clock = mock.clock(on, { now: 0 })
-    const ran = host(on, { statuses: [status('pending')], pr: 'OPEN' })
-    on('session.start', ($, e) => ({ cwd: e.cwd }))
-    on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false }, text: '' }))
+  for (const surface of ['desktop', 'terminal'] as const) {
+    it(`should follow a pull request's preview deploy and toast when it is ready on ${surface}`, async ($, on) => {
+      const clock = mock.clock(on, { now: 0 })
+      const repo = { statuses: [status('pending')] as unknown[], pr: 'OPEN' }
+      host(on, repo)
+      const toasts: string[] = []
+      on('session.start', ($, e) => ({ cwd: e.cwd }))
+      on('ui.toast', ($, e) => (toasts.push(e.text), { value: undefined }))
+      on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false }, text: '' }))
 
-    await $.session.start({ surface: 'desktop', isInteractive: true, cwd: '/work' })
-    await $.tool.call({ tool: 'Bash', command: 'git push', description: 'Push' })
-    await clock.advance(15_000)
-    expect(ran.some(c => c.startsWith('gh api'))).toBe(false)
-  })
+      await $.session.start({ surface, isInteractive: true, cwd: '/work' })
+      // The create-pr skill pushes and opens the pull request in one command.
+      await $.tool.call({ tool: 'Bash', command: 'git push -u origin feat/x && gh pr create --base main', description: 'Push and open PR' })
+      await clock.advance(1)
+      const ui = await $.ui.mount({ plugin: 'vercel-watch', surface, component: 'AbovePrompt', props: BAND })
+      expect(await ui.find({ type: 'Text', text: '⏳ web' })).toBeDefined()
+
+      repo.statuses = [status('success')]
+      await clock.advance(15_000)
+      expect(toasts).toEqual(['▲ web deployed (main)'])
+      await ui.unmount()
+    })
+  }
 
   it('should not follow a push that did not reach the remote', async ($, on) => {
     const clock = mock.clock(on, { now: 0 })

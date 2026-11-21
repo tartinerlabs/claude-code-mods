@@ -159,7 +159,7 @@ async function afterMerge($: EngineInterface) {
   if (head && (await read($, watch))?.sha !== head.sha) await start($, head.sha, head.branch)
 }
 
-/** After a push: the pushed commit, unless the push failed or the branch has an open pull request the app already follows. */
+/** After a push: the pushed commit, a pull request's preview included, unless the push did not reach the remote. */
 async function afterPush($: EngineInterface) {
   const [head, upstream, branch] = await Promise.all([
     run($, ['git', 'rev-parse', 'HEAD']),
@@ -168,7 +168,6 @@ async function afterPush($: EngineInterface) {
   ])
   if (!head || head !== upstream || !branch) return
   if ((await read($, watch))?.sha === head) return
-  if ((await run($, ['gh', 'pr', 'view', '--json', 'state', '--jq', '.state'])) === 'OPEN') return
   await start($, head, branch)
 }
 
