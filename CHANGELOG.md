@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.2](https://github.com/tartinerlabs/claude-code-mods/compare/v0.19.1...v0.19.2) (2026-11-21)
+
+
+### Bug Fixes
+
+* **youtube:** read en-orig captions and keep details on 429 ([b020aa8](https://github.com/tartinerlabs/claude-code-mods/commit/b020aa808072558aae80fd952259d8574e53eec7))
+
 ## [0.19.1](https://github.com/tartinerlabs/claude-code-mods/compare/v0.19.0...v0.19.1) (2026-11-15)
 
 
