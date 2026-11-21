@@ -21,6 +21,7 @@ const JSON3 = JSON.stringify({
     { tStartMs: 31_000, segs: [{ utf8: 'Hack' }, { utf8: ' one.' }] },
   ],
 })
+const JSON3_EN = JSON.stringify({ events: [{ tStartMs: 0, segs: [{ utf8: 'Translated captions.' }] }] })
 
 type Setup = { hasYtDlp?: boolean; hasBrew?: boolean; answer?: string; installs?: boolean; fails?: boolean; rateLimited?: boolean; files?: string[] }
 
@@ -62,7 +63,8 @@ function fake(on: Parameters<Parameters<typeof it>[1]>[1], setup: Setup = {}) {
   on('fs.list', () => ({
     value: (setup.files ?? ['SfX43uIubj4.en.json3', 'SfX43uIubj4.en-orig.json3']).map(name => ({ name, kind: 'file', size: 1, mtimeMs: 0, isLink: false })),
   }))
-  on('fs.read', ($, e) => (e.path === '/tmp/yt/SfX43uIubj4.en-orig.json3' ? { value: JSON3 } : { deny: 'ENOENT' }))
+  const files: Record<string, string> = { '/tmp/yt/SfX43uIubj4.en-orig.json3': JSON3, '/tmp/yt/SfX43uIubj4.en.json3': JSON3_EN }
+  on('fs.read', ($, e) => (files[e.path] ? { value: files[e.path]! } : { deny: 'ENOENT' }))
 
   return { toasts, ran, asked, sent }
 }
@@ -133,6 +135,14 @@ describe('youtube', () => {
     expect(toasts).toEqual([
       'YouTube: added "4 UI Design Hacks to KILL boring designs" (no transcript: ERROR: Unable to download video subtitles for \'en\': HTTP Error 429: Too Many Requests)',
     ])
+  })
+
+  it('should read the en transcript when there is no en-orig', async ($, on) => {
+    const { sent } = fake(on, { files: ['SfX43uIubj4.en.json3'] })
+
+    await submit($, 'youtu.be/SfX43uIubj4')
+
+    expect(sent[0]!.context).toEqual([formatContext(VIDEO, '[0:00] Translated captions.')])
   })
 
   it('should keep the original transcript when only the translated one is rate limited', async ($, on) => {
