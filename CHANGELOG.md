@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.19.4](https://github.com/tartinerlabs/claude-code-mods/compare/v0.19.3...v0.19.4) (2026-11-21)
+
+
+### Bug Fixes
+
+* **auto-resume:** handle repeated hours and reset backoff on prompts ([0840aba](https://github.com/tartinerlabs/claude-code-mods/commit/0840aba703679f8ee36b25f9eca281a73483dcdf))
+* **auto-resume:** wait out limits the usage windows miss ([b4354e3](https://github.com/tartinerlabs/claude-code-mods/commit/b4354e3a1fa296dd48e54880b4cc1f83421602cc)), closes [#54](https://github.com/tartinerlabs/claude-code-mods/issues/54)
+* **limit-watch:** drop the API-equivalent session cost ([8186472](https://github.com/tartinerlabs/claude-code-mods/commit/8186472bcd5b8e275fc5572d824d3ef1f6cc61b8))
+
 ## [0.19.3](https://github.com/tartinerlabs/claude-code-mods/compare/v0.19.2...v0.19.3) (2026-11-21)
 
 
