@@ -55,6 +55,11 @@
       "name": "youtube",
       "source": "./plugins/youtube",
       "description": "Reads the YouTube links in a prompt with yt-dlp and hands Claude each video's title, channel, description, chapters and transcript."
+    },
+    {
+      "name": "vercel-watch",
+      "source": "./plugins/vercel-watch",
+      "description": "Follows the Vercel deployments of a commit pushed without a pull request, or merged to the default branch, toasts when they finish and tells Claude when one fails."
     }
   ]
 }
