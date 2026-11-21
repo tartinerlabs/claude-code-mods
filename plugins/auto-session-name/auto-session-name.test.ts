@@ -10,6 +10,14 @@ describe('auto-session-name', () => {
     expect(result.sessionTitle).toBe('Fix login redirect bug')
   })
 
+  it('should leave the title to the desktop app', async ($, on) => {
+    on('session.surfaces', () => ({ value: ['desktop'] }))
+    on('classic.UserPromptSubmit', () => ({}))
+    on('model.complete', () => ({ value: { isAnswered: true, text: 'Fix login redirect bug', usage } }))
+    const result = await $.classic.UserPromptSubmit({ prompt: 'the login page redirects in a loop', source: 'user' })
+    expect(result.sessionTitle).toBeUndefined()
+  })
+
   it('should colour the prompt bar once the named turn completes', { options: { color: 'cyan' } }, async ($, on) => {
     on('classic.UserPromptSubmit', () => ({}))
     on('model.complete', () => ({ value: { isAnswered: true, text: 'Fix login redirect bug', usage } }))

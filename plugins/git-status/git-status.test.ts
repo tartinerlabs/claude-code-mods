@@ -61,7 +61,7 @@ describe('treeGroups', () => {
 })
 
 describe('git-status', () => {
-  for (const surface of ['terminal', 'desktop'] as const) {
+  for (const surface of ['terminal'] as const) {
     it(`should draw the tree above the prompt and toast when a rebase stops on conflicts on ${surface}`, async ($, on) => {
       mock.clock(on, { now: 0 })
       const toasts: string[] = []
@@ -97,6 +97,19 @@ describe('git-status', () => {
       expect(toasts).toEqual(['Rebasing stopped on 1 conflict'])
     })
   }
+
+  it('should leave the band to the app on desktop', async ($, on) => {
+    mock.clock(on, { now: 0 })
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('command.register', () => ({ value: undefined }))
+    on('process.run', ($, e) => (e.argv[0] === 'git' && e.argv[2] === 'status' ? run(DIRTY) : run('', 1)))
+    on('ui.render', ($, e) => $.ui.resolve(e).Text({ children: 'beneath' }))
+
+    await $.session.start({ surface: 'desktop', isInteractive: true, cwd: '/work' })
+    const ui = await $.ui.mount({ plugin: 'git-status', surface: 'desktop', component: 'AbovePrompt', props: BAND })
+    expect(await ui.find({ type: 'Text', text: /🌿/ })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: 'beneath' })).toBeDefined()
+  })
 
   it('should draw nothing outside a repository', async ($, on) => {
     mock.clock(on, { now: 0 })

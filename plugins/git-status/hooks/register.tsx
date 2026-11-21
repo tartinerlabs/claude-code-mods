@@ -329,7 +329,8 @@ export const register: Register = (on, options) => {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const [git, pr] = await Promise.all([read($, tree), read($, current)])
 
-    if (e.props.hasSurvey || (!git && !pr)) {
+    // The desktop app already tracks the branch's pull request.
+    if (e.surface !== 'terminal' || e.props.hasSurvey || (!git && !pr)) {
       return next(e)
     }
 

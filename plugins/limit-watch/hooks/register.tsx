@@ -53,7 +53,8 @@ export const register: Register = (on) => {
     const latest = await read($, limits)
     const usd = await read($, cost)
 
-    if (e.props.hasSurvey || (latest.length === 0 && usd === null)) {
+    // The desktop app's usage card already shows the limits.
+    if (e.surface !== 'terminal' || e.props.hasSurvey || (latest.length === 0 && usd === null)) {
       return next(e)
     }
 

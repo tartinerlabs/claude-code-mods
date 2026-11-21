@@ -1,7 +1,7 @@
 import { describe, expect, test as it } from 'claude-code/testing'
 
 describe('token-weather', () => {
-  for (const surface of ['terminal', 'desktop'] as const) {
+  for (const surface of ['terminal'] as const) {
     it(`should follow the context window in the band on ${surface}`, async ($, on) => {
       // Hooks registered here sit beneath the mod and stand in for Claude Code.
       let tokens: number | undefined = 36_100
@@ -53,6 +53,23 @@ describe('token-weather', () => {
       await ui.unmount()
     })
   }
+
+  it('should leave the context fill to the composer on desktop', async ($, on) => {
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('session.usage', () => ({ value: { startedAt: 0, rateLimits: [], context: { tokens: 36_100, window: 200_000, percent: 18 } } }))
+    on('ui.render', ($, e) => $.ui.resolve(e).Text({ children: 'beneath' }))
+
+    await $.session.start({ surface: 'desktop', isInteractive: true, cwd: '/work' })
+    const ui = await $.ui.mount({
+      plugin: 'token-weather',
+      surface: 'desktop',
+      component: 'AbovePrompt',
+      props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 120, scroll: { offset: 0, bodyRows: 10 }, view: {} },
+    })
+    expect(await ui.find({ type: 'Text', text: /of context/ })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: 'beneath' })).toBeDefined()
+    await ui.unmount()
+  })
 
   it('should follow the context window mid-turn after each model request', async ($, on) => {
     let tokens = 36_100

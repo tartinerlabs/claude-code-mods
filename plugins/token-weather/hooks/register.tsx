@@ -57,7 +57,8 @@ export const register: Register = on => {
     const current = await read($, live)
     const now = current ?? history.at(-1)
 
-    if (e.props.hasSurvey || now === undefined) {
+    // The desktop app's composer already shows the context fill.
+    if (e.surface !== 'terminal' || e.props.hasSurvey || now === undefined) {
       return next(e)
     }
 
