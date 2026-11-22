@@ -25,7 +25,7 @@
 | 🏷 | [auto-session-name](#-auto-session-name) | Session title | Names each session from its first prompt and keeps the name current as the work moves on (terminal only) |
 | ⏱ | [cache-clock](#-cache-clock) | Band above the prompt | Counts down to the prompt cache going cold |
 | 🌿 | [git-status](#-git-status) | Band above the prompt, toasts | Shows the branch, working tree and pull request, and merges the PR with `/merge` |
-| 📊 | [limit-watch](#-limit-watch) | Band above the prompt, toasts | Shows the 5-hour and weekly usage limits |
+| 📊 | [limit-watch](#-limit-watch) | Band above the prompt, toasts | Shows the 5-hour and weekly usage limits (terminal only) |
 | 📝 | [release-notes](#-release-notes) | Band above the prompt, toast | Drafts App Store release notes for Xcode projects when the version is bumped |
 | 📱 | [resource-watch](#-resource-watch) | Band above the prompt, toast | Shows which session is using each simulator, Claude Design project or the Xcode app, and messages the other session on a clash |
 | 🗜 | [smart-compact](#-smart-compact) | Toast | **Deprecated.** Compacts between turns, sooner at checkpoints or when the cache is cooling |
@@ -89,7 +89,7 @@ PR #42 checks passed, ready to /merge                                        ←
 
 ### 📊 limit-watch
 
-Draws the 5-hour and weekly usage limits above the prompt with live reset countdowns, green under 60%, yellow to 80% and red past it. Toasts once a window passes 80% and again at 95%. Any other window the API reports, such as a gateway spend limit, shows under its own name. In the desktop app it draws no band, since the usage card shows the limits; the toasts still fire.
+Draws the 5-hour and weekly usage limits above the prompt with live reset countdowns, green under 60%, yellow to 80% and red past it. Toasts once a window passes 80% and again at 95%. Any other window the API reports, such as a gateway spend limit, shows under its own name. Terminal only: in the desktop app it does nothing, as the usage card shows the limits.
 
 ```text
 🕔 5h 42% · 2h17m  📅 7d 81% · 3d4h                        ← band

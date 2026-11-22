@@ -79,6 +79,21 @@ describe('limit-watch', () => {
     expect(toasts).toHaveLength(3)
   })
 
+  it('should not toast in the desktop app', async ($, on) => {
+    mock.clock(on, { now: NOW })
+    const toasts: string[] = []
+    const limits = [{ kind: 'five_hour', percentUsed: 96, resetsAt: '2026-10-07T19:30:00Z' }]
+    on('session.surfaces', () => ({ value: ['desktop'] }))
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('session.usage', () => ({ value: { startedAt: NOW, context: { window: 200_000 }, rateLimits: limits } }))
+    on('session.measure', ($, e) => ({ changed: e.changed }))
+    on('ui.toast', ($, e) => (toasts.push(e.text), { value: undefined }))
+
+    await $.session.start({ surface: 'desktop', isInteractive: true, cwd: '/work' })
+    await $.session.measure({ context: { window: 200_000 }, rateLimits: limits, changed: ['rateLimits'] })
+    expect(toasts).toEqual([])
+  })
+
   it('should name a window it does not know by its kind and draw nothing off a subscription', async ($, on) => {
     mock.clock(on, { now: NOW })
     let limits: { kind: string; percentUsed: number; resetsAt?: string }[] = [{ kind: 'seven_day_fable', percentUsed: 40 }]

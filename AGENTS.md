@@ -24,7 +24,7 @@ A new mod must also not do what a skill can. Build a mod only for what needs a h
 
 Existing mods that overlap, as checked on 2026-11-21. Each drops the overlapping part off the terminal; don't extend it:
 
-- `limit-watch`: the limits duplicate the usage card, so it draws no desktop band; the 80%/95% toasts stay
+- `limit-watch`: the limits duplicate the usage card, so it is terminal-only and does nothing in the app, toasts included
 - `token-weather`: the context fill duplicates the composer, so the desktop band shows the per-turn sparkline and change alone
 - `git-status`: the PR part and `/merge` duplicate the app's PR tracking and merge, so in the app it skips `gh`, the check toasts and `/merge`, and draws the working tree alone
 - `vercel-watch`: on a pull request's branch the app's PR card also counts the Vercel check; the user chose on 2026-11-21 to keep following previews there for the per-project toast and failure note, so don't drop it as an overlap

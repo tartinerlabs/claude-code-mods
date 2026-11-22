@@ -14,6 +14,10 @@ const warned = atom({ plugin: 'limit-watch', key: 'warned' } as const, {} as War
 async function refresh($: EngineInterface, latest: readonly SessionRateLimit[]) {
   await update($, limits, () => [...latest])
 
+  // The desktop app's usage card covers the limits; a terminal attached too still wants the toasts.
+  const surfaces = await $.session.surfaces().catch(() => [])
+  if (surfaces.length > 0 && !surfaces.some(s => s === 'terminal')) return
+
   const now = await $.clock.now()
   const seen = await read($, warned)
   for (const limit of latest) {
