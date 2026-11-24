@@ -9,6 +9,11 @@ const BUFFER_MS = 60_000
 // When nothing says when the limit resets, try again after this long, doubling on each miss up to the cap.
 const FALLBACK_MS = 5 * 60_000
 const FALLBACK_CAP_MS = 60 * 60_000
+// Claude Code's own auto-continue only waits for a reset this near.
+const BUILT_IN_REACH_MS = 24 * 60 * 60_000
+// A prompt of one of these kinds means the session is moving again: the person's own, from the
+// terminal, Remote Control or the app, or Claude Code's own auto-continue.
+const PICKED_UP = ['composer', 'bridge', 'sdk', 'auto-continuation']
 
 // Held by the host, so a pending resume survives a hot reload of this file.
 const resumeAt = atom({ plugin: 'auto-resume', key: 'resumeAt' } as const, null as ResumeAt)
@@ -17,6 +22,10 @@ const resumeAt = atom({ plugin: 'auto-resume', key: 'resumeAt' } as const, null 
 let ticker: Timer | undefined
 // Fallback retries in a row that still hit the limit; a known reset or the person's own prompt clears it.
 let misses = 0
+// Whether a person is at a terminal prompt, where Claude Code's own auto-continue runs.
+let interactive = false
+// Claude Code's own auto-continue is expected to resume, so the wait draws nothing and only backs it up.
+let quiet = false
 
 // Each step goes to the debug log, so a resume that never came can be traced.
 function note($: EngineInterface, text: string) {
@@ -26,6 +35,7 @@ function note($: EngineInterface, text: string) {
 async function cancel($: EngineInterface) {
   ticker?.cancel()
   ticker = undefined
+  quiet = false
   $.ui.status(undefined)
   await update($, resumeAt, () => null)
 }
@@ -34,14 +44,14 @@ async function arm($: EngineInterface, at: number) {
   ticker?.cancel()
   await update($, resumeAt, () => at)
   const now = await $.clock.now()
-  note($, `armed for ${new Date(at).toISOString()}`)
-  $.ui.status(`⏸ auto-resume in ${countdown(at - now)}`)
+  note($, `armed for ${new Date(at).toISOString()}${quiet ? ', behind the built-in auto-continue' : ''}`)
+  if (!quiet) $.ui.status(`⏸ auto-resume in ${countdown(at - now)}`)
   // Each tick reads the time, so a wait the machine slept through still ends on waking.
   ticker = $.clock.every(1000, async () => {
     // A tick landing after a cancel must neither redraw the line nor resume.
     if ((await read($, resumeAt)) !== at) return
     const left = at - (await $.clock.now())
-    if (left > 0) return $.ui.status(`⏸ auto-resume in ${countdown(left)}`)
+    if (left > 0) return quiet ? undefined : $.ui.status(`⏸ auto-resume in ${countdown(left)}`)
     await resume($)
   })
 }
@@ -67,6 +77,7 @@ export const register: Register = (on) => {
       argumentHint: '[cancel]',
     })
     misses = 0
+    interactive = e.isInteractive
     // Re-arm a resume planned before a reload.
     const at = await read($, resumeAt)
     if (at !== null) await arm($, at)
@@ -86,7 +97,12 @@ export const register: Register = (on) => {
     note($, `rate limited, windows ${JSON.stringify(rateLimits)}, message ${JSON.stringify(message)}`)
     if (resets.length) {
       misses = 0
-      await arm($, Math.max(...resets, now) + BUFFER_MS)
+      const at = Math.max(...resets, now)
+      // Claude Code continues a terminal session itself at a reset within a day, unless turned off.
+      const builtIn = interactive && at - now <= BUILT_IN_REACH_MS
+      // A read that fails counts as the default, on: a quiet wait still resumes.
+      quiet = builtIn && (await $.settings.read({ key: 'autoContinueAtUsageLimit' }).catch(() => undefined)) !== false
+      await arm($, at + BUFFER_MS)
     } else {
       await arm($, now + backoff(misses++))
     }
@@ -94,9 +110,25 @@ export const register: Register = (on) => {
     return result
   }).catch(($, e, next) => next(e))
 
-  // The person picked the session back up themselves.
+  // Claude Code's own auto-continue reports how its wait ended.
+  on('classic.Notification', async ($, e, next) => {
+    if ((await read($, resumeAt)) !== null) {
+      if (e.notification_type === 'quota_auto_resume_fired') {
+        note($, 'cancelled, the built-in auto-continue resumed')
+        await cancel($)
+      } else if (e.notification_type === 'quota_auto_resume_disabled' || e.notification_type === 'quota_auto_resume_stale') {
+        // It gave up, so this wait is the one that resumes.
+        note($, `the built-in auto-continue gave up: ${e.notification_type}`)
+        quiet = false
+      }
+    }
+
+    return next(e)
+  }).catch(($, e, next) => next(e))
+
+  // The person picked the session back up themselves, or Claude Code's own auto-continue did.
   on('prompt.submit', async ($, e, next) => {
-    if (e.origin.kind === 'composer' || e.origin.kind === 'bridge') {
+    if (PICKED_UP.includes(e.origin.kind)) {
       // Their own prompt starts any later limit over at the shortest wait.
       misses = 0
       if ((await read($, resumeAt)) !== null) {

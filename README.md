@@ -21,7 +21,7 @@
 
 | | Mod | Where it shows | In one line |
 | :-: | --- | --- | --- |
-| ⏸ | [auto-resume](#-auto-resume) | Status line, toast | Picks a turn back up once a usage limit resets |
+| ⏸ | [auto-resume](#-auto-resume) | Status line, toast | Picks a turn back up once a usage limit resets, where Claude Code's own auto-continue does not |
 | 🏷 | [auto-session-name](#-auto-session-name) | Session title | Names each session from its first prompt and keeps the name current as the work moves on (terminal only) |
 | ⏱ | [cache-clock](#-cache-clock) | Band above the prompt | Counts down to the prompt cache going cold |
 | 🌿 | [git-status](#-git-status) | Band above the prompt, toasts | Shows the branch, working tree and pull request, and merges the PR with `/merge` |
@@ -37,7 +37,7 @@
 
 ### ⏸ auto-resume
 
-When a turn stops on a usage limit, waits until the limit resets and sends `continue`. It reads the reset time from the usage windows and from the limit's own message, so it also waits out a limit the windows don't report, such as one model's own. When neither says, it tries again after 5 minutes, doubling up to an hour while the limit holds. Typing a prompt yourself or running `/auto-resume cancel` stops the wait.
+When a turn stops on a usage limit, waits until the limit resets and sends `continue`. It reads the reset time from the usage windows and from the limit's own message, so it also waits out a limit the windows don't report, such as one model's own. When neither says, it tries again after 5 minutes, doubling up to an hour while the limit holds. Typing a prompt yourself or running `/auto-resume cancel` stops the wait. Claude Code now continues a terminal session itself when the reset is within a day, so there the mod waits without a countdown and sends `continue` only if the built-in has not resumed a minute after the reset; it stands down as soon as the built-in resumes. The countdown shows for what the built-in leaves alone: a reset more than a day away, `-p` and background sessions, the desktop app, or `autoContinueAtUsageLimit` turned off.
 
 ```text
 ⏸ auto-resume in 1:12:04                                   ← status line
