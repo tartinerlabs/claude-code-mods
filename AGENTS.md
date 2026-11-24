@@ -28,6 +28,7 @@ Existing mods that overlap, as checked on 2026-11-21. Each drops the overlapping
 - `token-weather`: the context fill duplicates the composer, so the desktop band shows the per-turn sparkline and change alone
 - `git-status`: the PR part and `/merge` duplicate the app's PR tracking and merge, so in the app it skips `gh`, the check toasts and `/merge`, and draws the working tree alone
 - `vercel-watch`: on a pull request's branch the app's PR card also counts the Vercel check; the user chose on 2026-11-21 to keep following previews there for the per-project toast and failure note, so don't drop it as an overlap
+- `auto-resume`: Claude Code continues a session itself after a limit resets (`autoContinueAtUsageLimit` in a terminal, the session-limit card's checkbox in the app), as checked on 2026-11-24. So the mod waits quietly where the built-in runs, stands down on its `quota_auto_resume_fired` notification or its prompt, and resumes only what it leaves: resets over a day away, `-p` and background sessions, a wait it gave up on
 - `auto-session-name`: the app owns the session title, so it is terminal-only and does nothing in the app; its `/color` shows up in the transcript as a command entry
 
 ## Mod Layout

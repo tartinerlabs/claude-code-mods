@@ -23,7 +23,7 @@ describe('auto-resume', () => {
     const status: (string | undefined)[] = []
     on('ui.status', ($, e) => (status.push(e.text), { value: undefined }))
 
-    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+    await $.session.start({ surface: 'desktop', isInteractive: false, cwd: '/work' })
     await $.classic.StopFailure({ error: 'rate_limit' })
     expect((await $.command.run({ command: 'auto-resume' })).text).toBe('Resuming in 2h 1m.')
     expect(status.at(-1)).toBe('⏸ auto-resume in 2:01:00')
@@ -150,6 +150,69 @@ describe('auto-resume', () => {
     expect(sent).toEqual(['continue'])
     await clock.advance(5 * 60_000)
     expect(sent).toEqual(['continue', 'continue'])
+  })
+})
+
+describe('auto-resume beside the built-in auto-continue', () => {
+  // A terminal session with a person at the prompt, stopped on a limit that resets in two hours.
+  async function limited($: Parameters<Parameters<typeof it>[1]>[0], on: Parameters<Parameters<typeof it>[1]>[1], setting?: boolean) {
+    const clock = mock.clock(on, { now: NOW })
+    const sent: string[] = []
+    const status: (string | undefined)[] = []
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('command.register', () => ({ value: undefined }))
+    on('session.usage', () => ({ value: { startedAt: NOW, context: { window: 200_000 }, rateLimits: EXHAUSTED } }))
+    on('settings.read', () => ({ value: setting === undefined ? {} : { autoContinueAtUsageLimit: setting } }))
+    on('classic.StopFailure', () => ({}))
+    on('classic.Notification', () => ({}))
+    on('prompt.submit', ($, e) => (sent.push(e.text), e))
+    on('ui.status', ($, e) => (status.push(e.text), { value: undefined }))
+
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+    await $.classic.StopFailure({ error: 'rate_limit' })
+
+    return { clock, sent, status }
+  }
+
+  it('should wait without a countdown and still resume when the built-in does not', async ($, on) => {
+    const { clock, sent, status } = await limited($, on)
+    await clock.advance(TWO_HOURS)
+    expect(status.filter(Boolean)).toEqual([])
+    expect(sent).toEqual([])
+    await clock.advance(60_000)
+    expect(sent).toEqual(['continue'])
+  })
+
+  it('should stand down once the built-in resumes', async ($, on) => {
+    const { clock, sent } = await limited($, on)
+    await clock.advance(TWO_HOURS)
+    await $.classic.Notification({ message: 'Continuing', notification_type: 'quota_auto_resume_fired' })
+    expect((await $.command.run({ command: 'auto-resume' })).text).toBe('No resume pending.')
+    await clock.advance(TWO_HOURS)
+    expect(sent).toEqual([])
+  })
+
+  for (const kind of ['auto-continuation', 'sdk']) {
+    it(`should stand down on a prompt of the ${kind} kind`, async ($, on) => {
+      const { clock, sent } = await limited($, on)
+      await $.prompt.submit({ text: 'go on', origin: { kind } } as never)
+      await clock.advance(TWO_HOURS * 2)
+      expect(sent).toEqual(['go on'])
+    })
+  }
+
+  it('should count down once the built-in gives up', async ($, on) => {
+    const { clock, sent, status } = await limited($, on)
+    await $.classic.Notification({ message: 'Not continuing', notification_type: 'quota_auto_resume_disabled' })
+    await clock.advance(1000)
+    expect(status.at(-1)).toBe('⏸ auto-resume in 2:00:59')
+    await clock.advance(TWO_HOURS + 60_000)
+    expect(sent).toEqual(['continue'])
+  })
+
+  it('should count down when the built-in is turned off', async ($, on) => {
+    const { status } = await limited($, on, false)
+    expect(status.at(-1)).toBe('⏸ auto-resume in 2:01:00')
   })
 })
 
