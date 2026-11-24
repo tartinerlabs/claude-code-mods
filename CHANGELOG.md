@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.22.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.21.0...v0.22.0) (2026-11-24)
+
+
+### Features
+
+* **smart-compact:** ask again only after more growth or a checkpoint ([59e9b54](https://github.com/tartinerlabs/claude-code-mods/commit/59e9b54d17464d745060456462ff7616b09aed83))
+* **smart-compact:** let Haiku decide when to compact ([3516165](https://github.com/tartinerlabs/claude-code-mods/commit/351616531587a27b6f161b186dd597dea1d9135e))
+
+
+### Bug Fixes
+
+* **auto-resume:** back up the built-in auto-continue ([07bad8c](https://github.com/tartinerlabs/claude-code-mods/commit/07bad8c71f8d4348c5de0e98812ed5d2527bbc43))
+* **limit-watch:** skip the toasts in the desktop app ([6230d5d](https://github.com/tartinerlabs/claude-code-mods/commit/6230d5d72f6d03fcdc7e43450eed5bbfbcdda599))
+* **smart-compact:** leave the decider room to think ([69ef3e1](https://github.com/tartinerlabs/claude-code-mods/commit/69ef3e194b9635bd3c2a8320ac6bcb5108e9e80a))
+
 ## [0.21.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.20.1...v0.21.0) (2026-11-21)
 
 
