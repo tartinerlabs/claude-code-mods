@@ -64,7 +64,7 @@
     {
       "name": "package-manager",
       "source": "./plugins/package-manager",
-      "description": "Holds Claude to the project's package manager and stops it weakening supply-chain guards: release-age gates, install scripts, overrides, global installs and lockfiles."
+      "description": "Holds Claude to the project's package manager and stops it weakening supply-chain guards: release-age gates, install scripts, overrides and lockfiles, and asks before global installs."
     }
   ]
 }

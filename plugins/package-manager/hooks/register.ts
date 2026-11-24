@@ -502,9 +502,9 @@ export const topicOfKey = (name: string): Topic | undefined =>
   GATES.find(gate => !gate.files.includes('package.json') && squash(gate.key) === squash(name))?.topic
 
 /** One way a command or change weakens a guard. */
-export type Weakening = { topic: Topic | 'global'; change: string }
+export type Weakening = { topic: Topic; change: string }
 
-/** What in `command` weakens a guard: a flag, a variable, a config or `pkg set` command, or a global install. */
+/** What in `command` weakens a guard: a flag, a variable, or a config or `pkg set` command. */
 export const commandWeakenings = (command: string): Weakening[] => {
   const found: Weakening[] = []
 
@@ -546,6 +546,20 @@ export const commandWeakenings = (command: string): Weakening[] => {
 
     if (program === 'pnpm' && args[0] === 'approve-builds') found.push({ topic: 'scripts', change: 'runs pnpm approve-builds' })
     if (program === 'bun' && args[0] === 'pm' && args[1] === 'trust') found.push({ topic: 'scripts', change: 'runs bun pm trust' })
+  }
+
+  return found
+}
+
+/**
+ * Each global install in `command`, as written: it changes the machine, not
+ * the project, so it goes to the user to allow rather than being stopped.
+ */
+export const globalInstalls = (command: string): string[] =>
+  segments(command).flatMap(({ words, raw }) => {
+    const [program, ...args] = words
+
+    if (program === undefined) return []
 
     const isGlobal =
       (['npm', 'pnpm', 'bun'].includes(program) && args.some(arg => arg === '-g' || arg === '--global') && !GLOBAL_READS.has(args.find(arg => !arg.startsWith('-')) ?? '')) ||
@@ -554,11 +568,57 @@ export const commandWeakenings = (command: string): Weakening[] => {
       (program === 'pipx' && ['install', 'upgrade', 'inject'].includes(args[0] ?? '')) ||
       (['pip', 'pip3'].includes(program) && args[0] === 'install' && args.some(arg => arg === '--user' || arg === '--break-system-packages'))
 
-    if (isGlobal) found.push({ topic: 'global', change: `installs globally with ${program}` })
-  }
+    return isGlobal ? [raw.join(' ')] : []
+  })
 
-  return found
+/** Each global install in `command`, as its words as written. */
+const globalSegments = (command: string): string[][] =>
+  segments(command).flatMap(({ raw }) => (globalInstalls(raw.join(' ')).length > 0 ? [raw] : []))
+
+/** The command each manager installs a tool globally with. */
+const GLOBAL_INSTALL: Record<string, string> = {
+  npm: 'npm install -g',
+  pnpm: 'pnpm add -g',
+  yarn: 'yarn global add',
+  bun: 'bun add -g',
+  uv: 'uv tool install',
+  pip: 'pipx install',
 }
+
+/** The managers named in the global-manager setting, by ecosystem: `pnpm, uv`; `pipx` stands for pip's tools. */
+export const parseGlobalManagers = (setting: unknown): Map<string, string> =>
+  parseFallbacks(String(setting ?? '').replace(/\bpipx\b/g, 'pip'))
+
+/** The packages a global install names: the words after its install verb that are not flags. */
+const globalPackages = (raw: readonly string[]): string[] => {
+  const [program, ...args] = raw
+  const skip = program === 'yarn' ? 2 : program === 'uv' ? 2 : 1
+
+  return args.slice(skip).filter(arg => !arg.startsWith('-'))
+}
+
+/**
+ * The reason a global install is stopped because it uses another manager than
+ * the preferred one, with the command to run instead where it installs packages.
+ */
+export const globalManagerReason = (raw: readonly string[], preferred: string): string | undefined => {
+  const ecosystem = ecosystemOf(raw[0] ?? '')
+  const used = ecosystem === undefined ? undefined : ECOSYSTEMS[ecosystem]!.words[raw[0]!]
+
+  if (used === undefined || used === preferred) return undefined
+
+  const packages = globalPackages(raw)
+  const verb = raw[0] === 'yarn' ? raw[2] : raw[0] === 'uv' ? raw[2] : raw[1]
+  const installs = ['install', 'i', 'add', 'a'].includes(verb ?? '') || (raw[0] === 'pip' || raw[0] === 'pip3' ? verb === 'install' : false)
+  const name = preferred === 'pip' ? 'pipx' : preferred
+  const instead = installs && packages.length > 0 && GLOBAL_INSTALL[preferred] !== undefined ? `Run \`${GLOBAL_INSTALL[preferred]} ${packages.join(' ')}\` instead.` : `Use ${name} for it instead.`
+
+  return `package-manager: global installs here use ${name}, not ${raw[0]}. ${instead}`
+}
+
+/** What the permission prompt says about a global install. */
+export const globalReason = (installs: readonly string[]): string =>
+  `package-manager: \`${installs.join('` and `')}\` installs globally, changing this machine rather than the project. Allow it only if you want it installed for every project.`
 
 const unquote = (text: string) => text.trim().replace(/^(['"])(.*)\1$/, '$2').trim()
 
@@ -737,14 +797,13 @@ export const weakenings = (path: string, before: string, after: string): Weakeni
   })
 
 /** What each guard protects, and what Claude does instead of weakening it. */
-const WHY: Record<Weakening['topic'], string> = {
+const WHY: Record<Topic, string> = {
   'release-age':
     'The release-age gate holds new versions back until a bad release can be caught. Tell the user which package needs a newer version and offer to pin the newest version old enough, or to wait.',
   scripts:
     "Install scripts are how a malicious package runs code on install, so they run only for packages the user approved. Tell the user which package wants its build script run and let them approve it.",
   overrides:
     'An override forces a version on every package that depends on it. Bump the direct dependency instead, or leave a transitive one until its parent updates, and tell the user.',
-  global: 'A global install changes the machine, not the project. Run the tool once with npx, pnpm dlx, yarn dlx, bunx or uvx instead, or ask the user to install it.',
 }
 
 /** The reason a change is stopped: what it does, why each guard matters, and that the change is the user's to make. */
@@ -895,6 +954,7 @@ const fileGuard = async ($: EngineInterface, verb: string, path: string, after: 
 
 export const register: Register = (on, options) => {
   const fallbacks = parseFallbacks(options.fallback)
+  const globalManagers = parseGlobalManagers(options.globalManager)
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     const weakened = commandWeakenings(e.command)
@@ -905,6 +965,13 @@ export const register: Register = (on, options) => {
       const found = await committedWeakenings($, commit)
 
       if (found.length > 0) return { deny: guardReason('commit', found) }
+    }
+
+    for (const raw of globalSegments(e.command)) {
+      const preferred = globalManagers.get(ecosystemOf(raw[0] ?? '') ?? '')
+      const deny = preferred === undefined ? undefined : globalManagerReason(raw, preferred)
+
+      if (deny !== undefined) return { deny }
     }
 
     if (!MAYBE.test(e.command)) return next(e)
@@ -921,6 +988,7 @@ export const register: Register = (on, options) => {
       const ecosystem = ecosystemOf(word)
 
       if (ecosystem === undefined) continue
+      if (globalManagers.has(ecosystem) && globalInstalls(raw.join(' ')).length > 0) continue
       const key = `${ecosystem} ${dir}`
 
       if (!known.has(key)) {
@@ -944,6 +1012,26 @@ export const register: Register = (on, options) => {
     }
 
     return next(e)
+  }).catch(($, e, next) => next(e))
+
+  // A global install isn't refused: it goes to the user, even where a rule would allow it.
+  on('tool.check', { tool: 'Bash' }, async ($, e, next) => {
+    const command = (e.input as { command?: unknown } | undefined)?.command
+    const installs = typeof command === 'string' ? globalInstalls(command) : []
+
+    if (installs.length === 0) return next(e)
+
+    const below = await next(e)
+
+    return below.decision === 'deny' ? below : { decision: 'ask', reason: globalReason(installs) }
+  }).catch(($, e, next) => next(e))
+
+  // In auto mode the classifier decides instead of the dialog: a global install goes to the user there too.
+  on('tool.judge', { tool: 'Bash' }, ($, e, next) => {
+    const command = (e.input as { command?: unknown } | undefined)?.command
+    const installs = typeof command === 'string' ? globalInstalls(command) : []
+
+    return installs.length === 0 ? next(e) : { decision: 'ask', reason: globalReason(installs) }
   }).catch(($, e, next) => next(e))
 
   on('tool.call', { tool: 'Edit' }, async ($, e, next) => {

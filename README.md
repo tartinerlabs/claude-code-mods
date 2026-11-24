@@ -114,8 +114,9 @@ It also guards the supply-chain settings of pnpm, npm, yarn, bun and uv, which a
 | Release age | Shorten the wait before new versions install, or let a package skip it: `minimumReleaseAge`, `min-release-age`, `npmMinimalAgeGate`, `exclude-newer` and their exclude lists |
 | Install scripts | Let a package run its build scripts: `allowBuilds`, `dangerouslyAllowAllBuilds`, `pnpm approve-builds`, `ignore-scripts`, `allowScripts`, `enableScripts`, `trustedDependencies`, `bun pm trust` |
 | Overrides | Force a dependency's version: `overrides`, `resolutions`, `pnpm.overrides`, `override-dependencies` |
-| Global installs | `npm i -g`, `pnpm add -g`, `yarn global add`, `uv tool install`, `pipx install`, `pip install --user` |
 | Lockfiles | Edit `pnpm-lock.yaml`, `package-lock.json`, `yarn.lock`, `bun.lock`, `uv.lock` and the rest by hand |
+
+A global install (`npm i -g`, `pnpm add -g`, `yarn global add`, `uv tool install`, `pipx install`, `pip install --user`) isn't refused: it goes to you as a permission prompt, even where a rule would allow the command, since it changes the machine rather than the project. The `globalManager` option names the manager Claude must use for them, like `pnpm, uv`: a global install with another manager is stopped with the command to run instead (`npm i -g typescript` becomes `pnpm add -g typescript`), and the preferred one still asks you.
 
 The guards apply however the change is made:
 
