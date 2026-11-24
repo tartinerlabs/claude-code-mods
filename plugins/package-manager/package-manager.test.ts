@@ -8,12 +8,16 @@ import {
   equivalent,
   fromMarkers,
   gatesOf,
+  globalInstalls,
+  globalManagerReason,
+  globalReason,
   guardReason,
   isBypassingWrapper,
   isOffending,
   jsonEntriesOf,
   lockfileOf,
   parseFallbacks,
+  parseGlobalManagers,
   reason,
   secondsOf,
   segments,
@@ -215,14 +219,13 @@ describe('commandWeakenings', () => {
     expect(changes('bun pm trust --all')).toEqual(['scripts: runs bun pm trust'])
   })
 
-  it('should stop overrides and global installs', () => {
+  it('should stop overrides', () => {
     expect(changes('npm pkg set overrides.lodash=4.17.21')).toEqual(['overrides: runs npm pkg set overrides.lodash'])
     expect(changes('npm pkg set trustedDependencies[0]=esbuild')).toEqual(['scripts: runs npm pkg set trustedDependencies[0]'])
-    expect(changes('npm i -g typescript')).toEqual(['global: installs globally with npm'])
-    expect(changes('pnpm add --global tsx')).toEqual(['global: installs globally with pnpm'])
-    expect(changes('yarn global add serve')).toEqual(['global: installs globally with yarn'])
-    expect(changes('uv tool install ruff')).toEqual(['global: installs globally with uv'])
-    expect(changes('pip install --user requests')).toEqual(['global: installs globally with pip'])
+  })
+
+  it('should leave global installs to the permission prompt rather than stopping them', () => {
+    expect(changes('npm i -g typescript')).toEqual([])
   })
 
   it('should stop variables and config commands that set a guard', () => {
@@ -243,6 +246,56 @@ describe('commandWeakenings', () => {
     expect(changes('npm ls -g')).toEqual([])
     expect(changes('npx tsc --noEmit')).toEqual([])
     expect(changes('uv tool run ruff check')).toEqual([])
+  })
+})
+
+describe('globalInstalls', () => {
+  it('should find each global install, as written', () => {
+    expect(globalInstalls('npm i -g typescript')).toEqual(['npm i -g typescript'])
+    expect(globalInstalls('pnpm add --global tsx')).toEqual(['pnpm add --global tsx'])
+    expect(globalInstalls('yarn global add serve')).toEqual(['yarn global add serve'])
+    expect(globalInstalls('cd /tmp && uv tool install ruff')).toEqual(['uv tool install ruff'])
+    expect(globalInstalls('pipx install black')).toEqual(['pipx install black'])
+    expect(globalInstalls('pip install --user requests')).toEqual(['pip install --user requests'])
+  })
+
+  it('should let reads of the global store and one-off runs through', () => {
+    expect(globalInstalls('npm ls -g')).toEqual([])
+    expect(globalInstalls('pnpm list --global')).toEqual([])
+    expect(globalInstalls('yarn global list')).toEqual([])
+    expect(globalInstalls('uv tool run ruff check')).toEqual([])
+    expect(globalInstalls('pnpm dlx tsx script.ts')).toEqual([])
+  })
+
+  it('should say what the install does in the prompt', () => {
+    expect(globalReason(['npm i -g typescript'])).toBe(
+      'package-manager: `npm i -g typescript` installs globally, changing this machine rather than the project. Allow it only if you want it installed for every project.',
+    )
+  })
+})
+
+describe('globalManagerReason', () => {
+  it('should give the global install of the preferred manager in place of another', () => {
+    expect(globalManagerReason(['npm', 'i', '-g', 'typescript'], 'pnpm')).toBe(
+      'package-manager: global installs here use pnpm, not npm. Run `pnpm add -g typescript` instead.',
+    )
+    expect(globalManagerReason(['yarn', 'global', 'add', 'serve'], 'bun')).toBe(
+      'package-manager: global installs here use bun, not yarn. Run `bun add -g serve` instead.',
+    )
+    expect(globalManagerReason(['pipx', 'install', 'black'], 'uv')).toBe('package-manager: global installs here use uv, not pipx. Run `uv tool install black` instead.')
+    expect(globalManagerReason(['uv', 'tool', 'install', 'ruff'], 'pip')).toBe('package-manager: global installs here use pipx, not uv. Run `pipx install ruff` instead.')
+  })
+
+  it('should name the manager alone where the command does not install, and pass the preferred one', () => {
+    expect(globalManagerReason(['npm', 'update', '-g'], 'pnpm')).toBe('package-manager: global installs here use pnpm, not npm. Use pnpm for it instead.')
+    expect(globalManagerReason(['pnpm', 'add', '-g', 'tsx'], 'pnpm')).toBeUndefined()
+  })
+
+  it('should read the setting per ecosystem, pipx as pip', () => {
+    expect([...parseGlobalManagers('pnpm, pipx')]).toEqual([
+      ['node', 'pnpm'],
+      ['python', 'pip'],
+    ])
   })
 })
 
@@ -483,4 +536,42 @@ describe('the hooks', () => {
     )
   })
 
+
+  it('should ask the user before a global install, even where a rule allows it', async ($, on) => {
+    on('tool.check', () => ({ decision: 'allow' }))
+
+    const asked = await $.tool.check({ tool: 'Bash', input: { command: 'npm i -g typescript' } })
+
+    expect(asked.decision).toBe('ask')
+    expect(asked.reason).toContain('`npm i -g typescript` installs globally')
+  })
+
+  it('should keep a deny beneath and leave other commands to the rules', async ($, on) => {
+    on('tool.check', (_, e) => ({ decision: (e.input as { command: string }).command.includes('-g') ? 'deny' : 'allow' }))
+
+    expect((await $.tool.check({ tool: 'Bash', input: { command: 'npm i -g typescript' } })).decision).toBe('deny')
+    expect((await $.tool.check({ tool: 'Bash', input: { command: 'pnpm install' } })).decision).toBe('allow')
+  })
+
+  it('should stop a global install with another manager than the preferred one, in any project', { options: { globalManager: 'pnpm' } }, async ($, on) => {
+    on('session.cwd', () => ({ value: '/work/app' }))
+    on('fs.list', (_, e) => ({ value: e.path === '/work/app' ? [{ name: 'package-lock.json' }, { name: '.git' }] : [] }))
+    on('fs.read', () => ({ value: '' }))
+    on('tool.call', () => ({ result: {} }))
+
+    expect((await $.tool.call({ tool: 'Bash', command: 'npm i -g typescript' })).deny).toBe(
+      'package-manager: global installs here use pnpm, not npm. Run `pnpm add -g typescript` instead.',
+    )
+    expect((await $.tool.call({ tool: 'Bash', command: 'pnpm add -g typescript' })).deny).toBeUndefined()
+  })
+
+  it('should put a global install to the user rather than the auto-mode classifier', async ($, on) => {
+    on('tool.judge', () => ({ decision: 'allow' }))
+
+    const judged = await $.tool.judge({ tool: 'Bash', input: { command: 'npm i -g typescript' }, tool_use_id: 'call-1' })
+
+    expect(judged.decision).toBe('ask')
+    expect(judged.reason).toContain('`npm i -g typescript` installs globally')
+    expect((await $.tool.judge({ tool: 'Bash', input: { command: 'pnpm install' }, tool_use_id: 'call-2' })).decision).toBe('allow')
+  })
 })
