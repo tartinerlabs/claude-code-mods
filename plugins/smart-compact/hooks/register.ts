@@ -125,7 +125,8 @@ export const register: Register = (on, options) => {
           system: DECIDER_SYSTEM,
           prompt: digestText({ ...(await read($, digest)), percent: context.percent, checkpoint: reached, openCount }),
           effort: 'low',
-          maxTokens: 200,
+          // Haiku thinks 150 to 850 tokens before its one-line verdict, all within this cap.
+          maxTokens: 1024,
           timeoutMs: DECIDER_TIMEOUT_MS,
         })
         const verdict = reply.isAnswered ? parseVerdict(reply.text) : null
