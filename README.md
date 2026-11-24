@@ -134,7 +134,7 @@ About ten seconds after a turn ends, between turns only, it asks the `decider` m
 
 To keep it from compacting too often, it asks only when all of these hold:
 
-- the context is at the `floor` option (30, 40 default, or 50%), or 10 points lower while the 5-hour limit is at 80% or more
+- the context is at the `floor` option (30, 40 default, or 50%)
 - the context has grown at least 20 points since the last compaction, Claude Code's own included, measured from the first reading after it; a heavy turn can get there in minutes, a quiet stretch never does
 - nothing is typed in the prompt box
 

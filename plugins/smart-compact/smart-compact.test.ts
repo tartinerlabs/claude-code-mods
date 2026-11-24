@@ -8,7 +8,6 @@ describe('smart-compact', () => {
   it('should ask the decider only past the floor and once the context has grown 20 points since the last compaction', () => {
     expect(shouldAsk({ percent: 35, floor: 40, baseline: 0, askedAt: null, hasCheckpoint: false })).toBe(false)
     expect(shouldAsk({ percent: 42, floor: 40, baseline: 0, askedAt: null, hasCheckpoint: false })).toBe(true)
-    expect(shouldAsk({ percent: 35, floor: 40, fiveHourPercent: 85, baseline: 0, askedAt: null, hasCheckpoint: false })).toBe(true)
     // A large summary left 35%: 50% is past the floor but only 15 points of new work.
     expect(shouldAsk({ percent: 50, floor: 40, baseline: 35, askedAt: null, hasCheckpoint: false })).toBe(false)
     expect(shouldAsk({ percent: 55, floor: 40, baseline: 35, askedAt: null, hasCheckpoint: false })).toBe(true)

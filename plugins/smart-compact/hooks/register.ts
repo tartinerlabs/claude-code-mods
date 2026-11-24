@@ -78,7 +78,6 @@ const askedAt = atom({ plugin: 'smart-compact', key: 'askedAt' } as const, null 
 export type Gate = {
   percent: number
   floor: number
-  fiveHourPercent?: number
   baseline: number | null
   askedAt: number | null
   hasCheckpoint: boolean
@@ -108,19 +107,17 @@ export const register: Register = (on, options) => {
         return
       }
 
-      const { context, rateLimits } = await $.session.usage()
+      const { context } = await $.session.usage()
 
       // No reading until the first response after a start or a compaction.
       if (context.percent === undefined) {
         return
       }
 
-      const fiveHour = rateLimits.find(limit => limit.kind === 'five_hour')
       const reached = await read($, checkpoint)
       const isWorthAsking = shouldAsk({
         percent: context.percent,
         floor,
-        fiveHourPercent: fiveHour?.percentUsed,
         baseline: await read($, baseline),
         askedAt: await read($, askedAt),
         hasCheckpoint: reached !== null,
@@ -290,15 +287,14 @@ async function draft($: { prompt: { read: () => Promise<{ text: string }> } }) {
   }
 }
 
-// The cheap checks before spending a model call: enough context to be worth it,
-// 10 points less while the 5-hour limit runs low, enough grown since the last compaction,
-// and, after a wait, another ASK_STEP points or a fresh checkpoint.
-export function shouldAsk({ percent, floor, fiveHourPercent, baseline, askedAt, hasCheckpoint }: Gate) {
-  const minimum = fiveHourPercent !== undefined && fiveHourPercent >= 80 ? floor - 10 : floor
+// The cheap checks before spending a model call: enough context to be worth it, enough grown
+// since the last compaction, and, after a wait, another ASK_STEP points or a fresh checkpoint.
+// Usage limits never count: compacting is for a clean break, not for saving usage.
+export function shouldAsk({ percent, floor, baseline, askedAt, hasCheckpoint }: Gate) {
   const hasGrown = baseline !== null && percent - baseline >= MIN_GROWTH
   const isDue = askedAt === null || hasCheckpoint || percent - askedAt >= ASK_STEP
 
-  return percent >= minimum && hasGrown && isDue
+  return percent >= floor && hasGrown && isDue
 }
 
 export function digestText(input: TurnDigest & { percent: number; checkpoint: Checkpoint | null; openCount: number }) {

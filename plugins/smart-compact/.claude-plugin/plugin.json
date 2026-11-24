@@ -22,7 +22,7 @@
     "floor": {
       "type": "string",
       "title": "Compact from",
-      "description": "Context fill under which the decider is not asked; 10 points less while the 5-hour limit is at 80% or more.",
+      "description": "Context fill under which the decider is not asked.",
       "options": [
         "30",
         "40",
