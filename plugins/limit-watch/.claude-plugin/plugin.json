@@ -1,7 +1,7 @@
 {
   "name": "limit-watch",
   "displayName": "Limit Watch",
-  "version": "0.21.0",
+  "version": "0.22.0",
   "description": "Draws the 5-hour and weekly usage limits above the prompt, coloured by use, with reset countdowns and toasts at 80% and 95%. Terminal only: in the desktop app it leaves the limits to the usage card.",
   "author": {
     "name": "Tartiner Labs",

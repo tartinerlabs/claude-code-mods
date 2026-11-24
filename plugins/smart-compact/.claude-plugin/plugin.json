@@ -1,7 +1,7 @@
 {
   "name": "smart-compact",
   "displayName": "Smart Compact",
-  "version": "0.21.0",
+  "version": "0.22.0",
   "description": "Asks Haiku after each turn whether the work just reached a clean break, such as a commit, PR or approved plan, and compacts there with a summary shaped for it. Asks again only once the context has grown 20 points since the last compaction; leaves full-context and idle compaction to Claude Code.",
   "author": {
     "name": "Tartiner Labs",
