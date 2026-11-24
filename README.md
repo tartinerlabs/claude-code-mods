@@ -28,7 +28,7 @@
 | 📊 | [limit-watch](#-limit-watch) | Band above the prompt, toasts | Shows the 5-hour and weekly usage limits (terminal only) |
 | 📝 | [release-notes](#-release-notes) | Band above the prompt, toast | Drafts App Store release notes for Xcode projects when the version is bumped |
 | 📱 | [resource-watch](#-resource-watch) | Band above the prompt, toast | Shows which session is using each simulator, Claude Design project or the Xcode app, and messages the other session on a clash |
-| 🗜 | [smart-compact](#-smart-compact) | Toast | **Deprecated.** Compacts between turns, sooner at checkpoints or when the cache is cooling |
+| 🗜 | [smart-compact](#-smart-compact) | Toast | Asks Haiku whether the work reached a clean break and compacts there, once the context has grown enough since the last compaction |
 | ⛅ | [token-weather](#-token-weather) | Band above the prompt | Forecasts how full the context window is |
 | ▲ | [vercel-watch](#-vercel-watch) | Band above the prompt, toasts, Claude's context | Follows the Vercel deploy of a push, preview or production, or a merge, and tells Claude when one fails |
 | ▶️ | [youtube](#️-youtube) | Toast, Claude's context | Hands Claude the transcript, chapters and description of YouTube links in a prompt |
@@ -128,24 +128,26 @@ iPhone 18 Pro is in use by the web session; asked it, waiting                   
 
 ### 🗜 smart-compact
 
-> [!WARNING]
-> Deprecated. Claude Code already compacts the conversation on idle, so this mod adds nothing you can see. It stays listed for now and will be removed in a later release.
+Compacts the conversation at a clean break in the work, when the summary loses the least that matters. Claude Code already compacts when the context fills and after about an hour idle, so this mod leaves both alone and decides only whether the work just reached a break.
 
-Compacts the conversation between turns, never during one, weighing several factors against the context's fill. Past the `threshold` option (60, 70 default, or 80%) it compacts about ten seconds after a turn ends. It compacts sooner when compacting is cheapest or most worth it:
+About ten seconds after a turn ends, between turns only, it asks the `decider` model (`haiku` default, or `sonnet`) in one short call. The call reads your prompt, the tools the turn ran, the end of the reply, the open todos, and any checkpoint it saw: a commit, a PR opened or merged (`gh pr`, `gh stack`), an approved plan, a finished todo list, or a branch or worktree switch. A checkpoint followed by a file edit in the same turn no longer counts. The model compacts only when the work is finished and what follows won't need its detail, and waits when unsure. Each call counts toward your usage.
 
-- **Checkpoints**, 20 points lower: a turn that committed, opened or merged a PR (`gh pr`, `gh stack`), had a plan approved, finished its todo list, or switched branch or worktree. The summary is told what to keep for each, such as the approved plan verbatim. A checkpoint counts only until the next turn starts. Set `checkpoints` to `off` to ignore them.
-- **Cache cooling**, 20 points lower in the last minute before the prompt cache goes cold, so the summary still reads the conversation from cache. Once the cache is cold it does not compact sooner, since the summary would re-read the whole conversation uncached.
-- **5-hour limit**, 10 points lower while it is at 80% or more.
+To keep it from compacting too often, it asks only when all of these hold:
 
-Nothing takes it under the `floor` option (30, 40 default, or 50%), and it tries at most once per idle stretch. The `ttl` option defaults to `auto`: 1h on a subscription, 5m on an API key or cloud provider. Set it to `5m` while a subscription draws on usage credits, or to `1h` when you set a one-hour cache yourself.
+- the context is at the `floor` option (30, 40 default, or 50%)
+- the context has grown at least 20 points since the last compaction, Claude Code's own included, measured from the first reading after it; a heavy turn can get there in minutes, a quiet stretch never does
+- nothing is typed in the prompt box
+
+It asks at most once per idle stretch. After a `wait` it asks again only once the context has grown another 10 points, or sooner when a new checkpoint comes, so a long stretch of work midway doesn't cost a call every turn.
+
+The summary is told what to keep, such as the PR's number and branch. After an approved plan it does not repeat the plan, since Claude Code puts the plan back after compacting.
 
 Set `continue` to `tasks` to carry on after compacting while todos or tasks are still open. It sends `Continue with the remaining tasks.`, unless the turn was interrupted or ended on a question.
 
 ```text
-Compacted at 52%: committed                                  ← toast
-Compacted at 55%: cache cooling                              ← toast
-Compacted at 74%: context high, 5h limit at 86%              ← toast
-Compacted at 75%: context high; continuing                   ← toast
+Compacted at 52%: login fix committed                        ← toast
+Compacted at 34%: plan approved, ready to build              ← toast
+Compacted at 61%: part a done; continuing                    ← toast
 ```
 
 <sub>📁 [`plugins/smart-compact`](plugins/smart-compact)</sub>
