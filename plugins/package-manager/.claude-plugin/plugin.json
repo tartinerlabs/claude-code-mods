@@ -1,0 +1,18 @@
+{
+  "name": "package-manager",
+  "displayName": "Package Manager",
+  "version": "0.22.0",
+  "description": "Holds Claude to the project's package manager and wrapper, giving the exact command to run instead, and stops it weakening the supply-chain guards of pnpm, npm, yarn, bun and uv: release-age gates, install scripts and overrides, plus global installs and hand-edited lockfiles.",
+  "author": {
+    "name": "Tartiner Labs",
+    "url": "https://tartinerlabs.com"
+  },
+  "userConfig": {
+    "fallback": {
+      "type": "string",
+      "title": "Without a lockfile",
+      "description": "Managers to hold to when a project names none, one per ecosystem, comma-separated, like `pnpm, uv`. Empty holds to nothing.",
+      "default": ""
+    }
+  }
+}
