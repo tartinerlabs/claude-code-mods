@@ -6,14 +6,21 @@ const USAGE = { input_tokens: 900, output_tokens: 10, cache_read_input_tokens: 0
 
 describe('smart-compact', () => {
   it('should ask the decider only past the floor and once the context has grown 20 points since the last compaction', () => {
-    expect(shouldAsk({ percent: 35, floor: 40, baseline: 0 })).toBe(false)
-    expect(shouldAsk({ percent: 42, floor: 40, baseline: 0 })).toBe(true)
-    expect(shouldAsk({ percent: 35, floor: 40, fiveHourPercent: 85, baseline: 0 })).toBe(true)
+    expect(shouldAsk({ percent: 35, floor: 40, baseline: 0, askedAt: null, hasCheckpoint: false })).toBe(false)
+    expect(shouldAsk({ percent: 42, floor: 40, baseline: 0, askedAt: null, hasCheckpoint: false })).toBe(true)
+    expect(shouldAsk({ percent: 35, floor: 40, fiveHourPercent: 85, baseline: 0, askedAt: null, hasCheckpoint: false })).toBe(true)
     // A large summary left 35%: 50% is past the floor but only 15 points of new work.
-    expect(shouldAsk({ percent: 50, floor: 40, baseline: 35 })).toBe(false)
-    expect(shouldAsk({ percent: 55, floor: 40, baseline: 35 })).toBe(true)
+    expect(shouldAsk({ percent: 50, floor: 40, baseline: 35, askedAt: null, hasCheckpoint: false })).toBe(false)
+    expect(shouldAsk({ percent: 55, floor: 40, baseline: 35, askedAt: null, hasCheckpoint: false })).toBe(true)
     // Compacted, with no reading since: nothing to measure growth from yet.
-    expect(shouldAsk({ percent: 90, floor: 40, baseline: null })).toBe(false)
+    expect(shouldAsk({ percent: 90, floor: 40, baseline: null, askedAt: null, hasCheckpoint: false })).toBe(false)
+  })
+
+  it('should ask again after a wait only once the context grows 10 more points or a checkpoint comes', () => {
+    const asked = { floor: 40, baseline: 0, askedAt: 45 }
+    expect(shouldAsk({ ...asked, percent: 50, hasCheckpoint: false })).toBe(false)
+    expect(shouldAsk({ ...asked, percent: 50, hasCheckpoint: true })).toBe(true)
+    expect(shouldAsk({ ...asked, percent: 55, hasCheckpoint: false })).toBe(true)
   })
 
   it('should read a verdict and its reason, and nothing from a stray reply', () => {
@@ -102,6 +109,11 @@ describe('smart-compact', () => {
     expect(asked).toHaveLength(1)
     expect(asked[0].model).toBe('haiku')
     expect(instructions).toEqual([])
+
+    // Another turn at the same fill with no checkpoint: no new call after a wait.
+    await run('t1b', 'pnpm test')
+    await clock.advance(60_000)
+    expect(asked).toHaveLength(1)
 
     // A follow-up half typed: Haiku is not asked until the box is clear.
     verdict = 'compact: login fix committed'

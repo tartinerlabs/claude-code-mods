@@ -138,7 +138,7 @@ To keep it from compacting too often, it asks only when all of these hold:
 - the context has grown at least 20 points since the last compaction, Claude Code's own included, measured from the first reading after it; a heavy turn can get there in minutes, a quiet stretch never does
 - nothing is typed in the prompt box
 
-It asks at most once per idle stretch, so a `wait` holds until the next turn ends.
+It asks at most once per idle stretch. After a `wait` it asks again only once the context has grown another 10 points, or sooner when a new checkpoint comes, so a long stretch of work midway doesn't cost a call every turn.
 
 The summary is told what to keep, such as the PR's number and branch. After an approved plan it does not repeat the plan, since Claude Code puts the plan back after compacting.
 

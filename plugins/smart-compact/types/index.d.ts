@@ -14,6 +14,7 @@ declare module 'claude-code' {
       openTodos: number
       digest: TurnDigest
       baseline: number | null
+      askedAt: number | null
     }
   }
 }
