@@ -60,6 +60,11 @@
       "name": "vercel-watch",
       "source": "./plugins/vercel-watch",
       "description": "Follows the Vercel deployments of a pushed commit, a pull request's preview included, or of the default branch after a merge, above the prompt, toasts when they finish and tells Claude when one fails."
+    },
+    {
+      "name": "package-manager",
+      "source": "./plugins/package-manager",
+      "description": "Holds Claude to the project's package manager and stops it weakening supply-chain guards: release-age gates, install scripts, overrides, global installs and lockfiles."
     }
   ]
 }

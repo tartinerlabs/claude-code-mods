@@ -26,6 +26,7 @@
 | ⏱ | [cache-clock](#-cache-clock) | Band above the prompt | Counts down to the prompt cache going cold |
 | 🌿 | [git-status](#-git-status) | Band above the prompt, toasts | Shows the branch, working tree and pull request, and merges the PR with `/merge` |
 | 📊 | [limit-watch](#-limit-watch) | Band above the prompt, toasts | Shows the 5-hour and weekly usage limits (terminal only) |
+| 📦 | [package-manager](#-package-manager) | Blocked tool calls | Holds Claude to the project's package manager and stops it weakening the supply-chain guards |
 | 📝 | [release-notes](#-release-notes) | Band above the prompt, toast | Drafts App Store release notes for Xcode projects when the version is bumped |
 | 📱 | [resource-watch](#-resource-watch) | Band above the prompt, toast | Shows which session is using each simulator, Claude Design project or the Xcode app, and messages the other session on a clash |
 | 🗜 | [smart-compact](#-smart-compact) | Toast | Asks Haiku whether the work reached a clean break and compacts there, once the context has grown enough since the last compaction |
@@ -97,6 +98,36 @@ Draws the 5-hour and weekly usage limits above the prompt with live reset countd
 ```
 
 <sub>📁 [`plugins/limit-watch`](plugins/limit-watch)</sub>
+
+### 📦 package-manager
+
+Stops shell commands that use a different package manager from the project's, read from its lockfile or manifest: npm, pnpm, yarn or bun; pip, uv, poetry, pdm or pipenv; Maven or Gradle. The block names the exact command to run instead. A tool the project has installed runs with the manager's `exec`, any other with its `dlx`. Where the project ships a Maven or Gradle wrapper, it holds Claude to the wrapper. The `fallback` option names managers to hold to in a project with no lockfile, like `pnpm, uv`.
+
+```text
+package-manager: this project uses pnpm (pnpm-lock.yaml), not npx. Run `pnpm exec tsc --noEmit` instead.
+```
+
+It also guards the supply-chain settings of pnpm, npm, yarn, bun and uv, which are yours to change, not Claude's:
+
+| Guard | What Claude can't do |
+| --- | --- |
+| Release age | Shorten the wait before new versions install, or let a package skip it: `minimumReleaseAge`, `min-release-age`, `npmMinimalAgeGate`, `exclude-newer` and their exclude lists |
+| Install scripts | Let a package run its build scripts: `allowBuilds`, `dangerouslyAllowAllBuilds`, `pnpm approve-builds`, `ignore-scripts`, `allowScripts`, `enableScripts`, `trustedDependencies`, `bun pm trust` |
+| Overrides | Force a dependency's version: `overrides`, `resolutions`, `pnpm.overrides`, `override-dependencies` |
+| Global installs | `npm i -g`, `pnpm add -g`, `yarn global add`, `uv tool install`, `pipx install`, `pip install --user` |
+| Lockfiles | Edit `pnpm-lock.yaml`, `package-lock.json`, `yarn.lock`, `bun.lock`, `uv.lock` and the rest by hand |
+
+The guards apply however the change is made:
+
+- passing a flag, setting a variable, or running `config set` or `npm pkg set`
+- editing the config file or `package.json`
+- committing a change that weakens a guard. This also catches the exclude pnpm writes itself when its default gate is not strict.
+
+```text
+package-manager: this edit adds react@19.1.0 to minimumReleaseAgeExclude. The release-age gate holds new versions back …
+```
+
+<sub>📁 [`plugins/package-manager`](plugins/package-manager)</sub>
 
 ### 📝 release-notes
 
