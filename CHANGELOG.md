@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.23.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.22.0...v0.23.0) (2026-11-24)
+
+
+### Features
+
+* **package-manager:** add package-manager mod ([3d03c2c](https://github.com/tartinerlabs/claude-code-mods/commit/3d03c2c4b65c3477499fb5ab89ee61af808ee72f))
+* **package-manager:** ask before global installs ([cf77945](https://github.com/tartinerlabs/claude-code-mods/commit/cf779459bcd08bed30a52182a6981380eeee97e0))
+
 ## [0.22.0](https://github.com/tartinerlabs/claude-code-mods/compare/v0.21.0...v0.22.0) (2026-11-24)
 
 
